@@ -141,25 +141,24 @@ if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
   if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
 
     const userId = interaction.customId.split('_')[1];
+    const membro = await interaction.guild.members.fetch(userId);
 
-const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");   
+    const cargoId = "1470481510284132544";
 
-if (canalAprovados) canalAprovados.send(`✅ <@${userId}> foi aprovado!`);
+    await membro.roles.add(cargoId);
+
+    const nomeAtual = membro.displayName || membro.user.username;
+    const nomeLimpo = nomeAtual.replace(/^\[𝒀𝑲𝒁𝒙𝑭𝑴𝑳\]\s*/, "");
+    const novoApelido = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeLimpo}`;
+
+    await membro.setNickname(novoApelido);
+
+    const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
+    if (canalAprovados) canalAprovados.send(`✅ <@${userId}> foi aprovado!`);
 
     await interaction.message.delete();
     await interaction.reply({ content: "Utilizador aprovado!", ephemeral: true });
-  }
-
-  if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
-
-    const userId = interaction.customId.split('_')[1];
-
-    const canalRecusados = interaction.guild.channels.cache.get("1475705535700664330");
-    if (canalRecusados) canalRecusados.send(`❌ <@${userId}> foi recusado.`);
-
-    await interaction.message.delete();
-    await interaction.reply({ content: "Utilizador recusado!", ephemeral: true });
-  }
+}
 
 });
 const commands = [
