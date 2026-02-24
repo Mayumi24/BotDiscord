@@ -153,7 +153,7 @@ const commands = [
     .setName('setup')
     .setDescription('Enviar painel de candidatura')
 ].map(command => command.toJSON());
-
+console.log("CLIENT_ID:", process.env.CLIENT_ID);
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
