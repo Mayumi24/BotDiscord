@@ -147,12 +147,12 @@ if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
 
     await membro.roles.add(cargoId);
 
-    const nomeAtual = membro.displayName || membro.user.username;
-    const nomeLimpo = nomeAtual.replace(/^\[𝒀𝑲𝒁𝒙𝑭𝑴𝑳\]\s*/, "");
-    const novoApelido = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeLimpo}`;
+const nomeBase = membro.user.username;
 
-    await membro.setNickname(novoApelido);
-
+if (!membro.displayName.startsWith('[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]')) {
+    await membro.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeBase}`);
+}
+    
     const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
     if (canalAprovados) canalAprovados.send(`✅ <@${userId}> foi aprovado!`);
 
