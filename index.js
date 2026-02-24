@@ -168,7 +168,18 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
   }
 })();
 client.login(process.env.TOKEN);
+client.on("disconnect", () => {
+  console.log("Bot desconectado. Tentando reconectar...");
+  client.login(process.env.TOKEN);
+});
 
+client.on("reconnecting", () => {
+  console.log("Reconectando...");
+});
+
+client.on("error", (err) => {
+  console.error("Erro no client:", err);
+});
 const express = require('express');
 const app = express();
 
@@ -181,3 +192,6 @@ app.get("/health", (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
   console.log('Web server running');
 });
+setInterval(() => {
+  console.log("Still alive:", new Date().toISOString());
+}, 240000);
