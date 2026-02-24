@@ -29,28 +29,6 @@ function logCandidatura(mensagem) {
 
 client.once('ready', async () => {
   console.log('Bot online!');
-
-  const guild = client.guilds.cache.first();
-  if (!guild) return;
-
-  const canal = guild.channels.cache.get("1475592431725445333");
-
-  if (!canal) {
-    console.log("Canal de Registros não encontrado");
-    return;
-  }
-
-  const botao = new ButtonBuilder()
-    .setCustomId('abrir_form')
-    .setLabel('📩 Fazer Candidatura')
-    .setStyle(ButtonStyle.Primary);
-
-  const row = new ActionRowBuilder().addComponents(botao);
-
-  canal.send({
-    content: 'Clica no botão para enviares a tua candidatura:',
-    components: [row]
-  });
 });
 
 client.on('interactionCreate', async interaction => {
