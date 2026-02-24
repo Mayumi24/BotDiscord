@@ -177,7 +177,7 @@ client.on("guildMemberAdd", async (member) => {
     try {
         await member.roles.add(cargoId);
 
-        const novoApelido = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${member.user.username}`;
+        const novoApelido = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]  ${member.displayName}`;
         await member.setNickname(novoApelido);
 
         console.log(`Cargo e apelido definidos para ${member.user.tag}`);
