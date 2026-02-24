@@ -1,6 +1,5 @@
 // index.js do Bot Discord completo com .env e batch + logs
 
-require('dotenv').config();
 const fs = require('fs');
 const { 
   Client, 
