@@ -172,14 +172,19 @@ client.once('ready', async () => {
 });
 
 client.on("guildMemberAdd", async (member) => {
-  const cargoId = "1470481510284132544";
+    const cargoId = "1470481510284132544";
 
-  try {
-    await member.roles.add(cargoId);
-    console.log(`Cargo automático adicionado para ${member.user.tag}`);
-  } catch (err) {
-    console.error("Erro ao adicionar cargo:", err);
-  }
+    try {
+        await member.roles.add(cargoId);
+
+        const novoApelido = `[YKZxFML] ${member.user.username}`;
+        await member.setNickname(novoApelido);
+
+        console.log(`Cargo e apelido definidos para ${member.user.tag}`);
+
+    } catch (err) {
+        console.error("Erro ao configurar membro:", err);
+    }
 });
 client.login(process.env.TOKEN);
 
