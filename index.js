@@ -34,18 +34,17 @@ client.once('ready', async () => {
   console.log('Bot online!');
 });
 client.on('guildMemberAdd', async (member) => {
-  console.log("Novo membro entrou:", member.user.tag);
 
-    try {
-        if (!member.displayName.startsWith("[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]")) {
-            await member.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${member.user.username}`);
-            console.log("Nickname alterado com sucesso!");
-        } else {
-            console.log("Usuário já tem o prefixo.");
-        }
-    } catch (error) {
-        console.log("Erro ao alterar nickname:", error);
+    const cargoId = "1470481510284132544";
+
+    await member.roles.add(cargoId);
+
+    const nomeBase = member.user.username;
+
+    if (!member.displayName.startsWith('[YKZxFML]')) {
+        await member.setNickname(`[YKZxFML] ${nomeBase}`);
     }
+
 });
 
 client.on('interactionCreate', async interaction => {
