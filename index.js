@@ -190,12 +190,14 @@ client.on("guildMemberAdd", async (member) => {
 
     try {
         await member.roles.add(cargoId);
-const nomeLimpo = member.displayName.replace(/^\[[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]\]\s*/, "");
-const novoApelido = `[[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]] ${nomeLimpo}`;
 
-await member.setNickname(novoApelido);
+        const nomeAtual = member.displayName || member.user.username;
+        const nomeLimpo = nomeAtual.replace(/^\[[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]\]\s*/, "");
+        const novoApelido = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeLimpo}`;
+
+        await member.setNickname(novoApelido);
+
         console.log(`Cargo e apelido definidos para ${member.user.tag}`);
-
     } catch (err) {
         console.error("Erro ao configurar membro:", err);
     }
