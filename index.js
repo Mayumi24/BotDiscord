@@ -9,7 +9,10 @@ const {
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle
+  TextInputStyle,
+  REST,
+  Routes,
+  SlashCommandBuilder
 } = require('discord.js');
 
 const client = new Client({
@@ -32,7 +35,25 @@ client.once('ready', async () => {
 });
 
 client.on('interactionCreate', async interaction => {
+// 🔹 Comando /setup
+  if (interaction.isChatInputCommand()) {
+    if (interaction.commandName === 'setup') {
 
+      const botao = new ButtonBuilder()
+        .setCustomId('abrir_form')
+        .setLabel('📩 Fazer Candidatura')
+        .setStyle(ButtonStyle.Primary);
+
+      const row = new ActionRowBuilder().addComponents(botao);
+
+      await interaction.reply({
+        content: 'Clica no botão para enviares a tua candidatura:',
+        components: [row]
+      });
+
+      return;
+    }
+  }
   if (interaction.isButton() && interaction.customId === 'abrir_form') {
 
     const modal = new ModalBuilder()
@@ -127,7 +148,25 @@ if (canalAprovados) canalAprovados.send(`✅ <@${userId}> foi aprovado!`);
   }
 
 });
+const commands = [
+  new SlashCommandBuilder()
+    .setName('setup')
+    .setDescription('Enviar painel de candidatura')
+].map(command => command.toJSON());
 
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+
+(async () => {
+  try {
+    await rest.put(
+      Routes.applicationCommands(process.env.CLIENT_ID),
+      { body: commands }
+    );
+    console.log('Comando /setup registrado!');
+  } catch (error) {
+    console.error(error);
+  }
+})();
 client.login(process.env.TOKEN);
 
 const express = require('express');
