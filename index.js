@@ -167,11 +167,21 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     console.error(error);
   }
 })();
-client.login(process.env.TOKEN);
-client.on("disconnect", () => {
-  console.log("Bot desconectado. Tentando reconectar...");
-  client.login(process.env.TOKEN);
+client.once('ready', async () => {
+  console.log('Bot online!');
 });
+
+client.on("guildMemberAdd", async (member) => {
+  const cargoId = "1470481510284132544";
+
+  try {
+    await member.roles.add(cargoId);
+    console.log(`Cargo automático adicionado para ${member.user.tag}`);
+  } catch (err) {
+    console.error("Erro ao adicionar cargo:", err);
+  }
+});
+client.login(process.env.TOKEN);
 
 client.on("reconnecting", () => {
   console.log("Reconectando...");
