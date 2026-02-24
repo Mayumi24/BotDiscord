@@ -33,6 +33,16 @@ function logCandidatura(mensagem) {
 client.once('ready', async () => {
   console.log('Bot online!');
 });
+client.on('guildMemberAdd', async (member) => {
+  console.log("Novo membro entrou:", member.user.tag);
+
+  try {
+    await member.setNickname(`[YKZxFML] ${member.user.username}`);
+    console.log("Nickname alterado com sucesso!");
+  } catch (error) {
+    console.log("Erro ao alterar nickname:", error);
+  }
+});
 
 client.on('interactionCreate', async interaction => {
 // 🔹 Comando /setup
