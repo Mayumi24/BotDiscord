@@ -33,9 +33,16 @@ function logCandidatura(mensagem) {
 client.once('ready', async () => {
   console.log('Bot online!');
 });
-client.on('guildMemberAdd', async (member) => {
+
+
+client.on('interactionCreate', async interaction => {
+  if (interaction.isButton() && interaction.customId === "aprovar") {
 
     const cargoId = "1470481510284132544";
+
+    const userId = interaction.message.embeds[0].footer.text;
+
+    const member = await interaction.guild.members.fetch(userId);
 
     await member.roles.add(cargoId);
 
@@ -45,9 +52,11 @@ client.on('guildMemberAdd', async (member) => {
         await member.setNickname(`[YKZxFML] ${nomeBase}`);
     }
 
-});
-
-client.on('interactionCreate', async interaction => {
+    await interaction.reply({
+        content: "✅ Usuário aprovado com sucesso!",
+        ephemeral: true
+    });
+}
 // 🔹 Comando /setup
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === 'setup') {
@@ -171,9 +180,12 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
     await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID),
-      { body: commands }
-    );
+    Routes.applicationGuildCommands(
+        process.env.CLIENT_ID,
+        process.env.GUILD_ID
+    ),
+    { body: commands }
+);
     console.log('Comando /setup registrado!');
   } catch (error) {
     console.error(error);
@@ -181,24 +193,6 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 })();
 client.once('ready', async () => {
   console.log('Bot online!');
-});
-
-client.on("guildMemberAdd", async (member) => {
-    const cargoId = "1470481510284132544";
-
-    try {
-        await member.roles.add(cargoId);
-
-        const nomeAtual = member.displayName || member.user.username;
-        const nomeLimpo = nomeAtual.replace(/^\[[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]\]\s*/, "");
-        const novoApelido = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeLimpo}`;
-
-        await member.setNickname(novoApelido);
-
-        console.log(`Cargo e apelido definidos para ${member.user.tag}`);
-    } catch (err) {
-        console.error("Erro ao configurar membro:", err);
-    }
 });
 client.login(process.env.TOKEN);
 
