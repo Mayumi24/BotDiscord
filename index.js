@@ -76,7 +76,7 @@ client.on('interactionCreate', async interaction => {
     }
   }
 
-  // 2. ABRIR FORMULÁRIO
+  // 2. ABRIR FORMULÁRIO (COM RECRUTADOR)
   if (interaction.isButton() && interaction.customId === 'abrir_form') {
     const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Ficha de Candidatura');
     const campos = [
@@ -89,9 +89,9 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // 3. RECEBER FORMULÁRIO
+  // 3. RECEBER FORMULÁRIO (VISUAL YAKUZA)
   if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
-    await interaction.reply({ content: "Sua ficha foi enviada para a Staff! 🌸", ephemeral: true }); // Resposta imediata p/ evitar erro 40060
+    await interaction.reply({ content: "Sua ficha foi enviada para a Staff! 🌸", ephemeral: true });
 
     const staffCanal = interaction.guild.channels.cache.get("1475596507456475146");
     const embedStaff = new EmbedBuilder()
@@ -115,26 +115,32 @@ client.on('interactionCreate', async interaction => {
     if (staffCanal) await staffCanal.send({ embeds: [embedStaff], components: [row] });
   }
 
-  // 4. APROVAR / RECUSAR (TAG E CARGO AUTOMÁTICOS)
+  // 4. APROVAR / RECUSAR (CORREÇÃO DO UNDEFINED)
   if (interaction.isButton() && (interaction.customId.startsWith('aprovar_') || interaction.customId.startsWith('recusar_'))) {
     const isAprovar = interaction.customId.startsWith('aprovar_');
     const alvoId = interaction.customId.split('_')[1];
     const alvo = await interaction.guild.members.fetch(alvoId);
     
-    const canalId = isAprovar ? "1475596732292137021" : "1475705535700664330";
-    const canalFinal = interaction.guild.channels.cache.get(canalId);
     const embedAntigo = interaction.message.embeds[0];
 
     if (isAprovar) {
       try {
-        const cargoFamiliaId = "1470481510284132544"; // ID fornecido
-        await alvo.roles.add(cargoFamiliaId);
+        // Cargo da Família pelo ID
+        await alvo.roles.add("1470481510284132544");
 
-        const nomeReal = embedAntigo.description.split('\n')[1].split(': ')[1]; 
-        await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeReal}`).catch(() => console.log("Erro no Nick.")); // Tag estilizada
-      } catch (e) { console.log("Erro permissão cargo: " + e.message); }
+        // Busca o nome real na descrição do embed
+        const linhas = embedAntigo.description.split('\n');
+        const linhaNome = linhas.find(l => l.includes('Nome Real:'));
+        const nomeReal = linhaNome ? linhaNome.split(': ')[1] : "Membro";
+
+        // Aplica a Tag estilizada
+        await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeReal}`).catch(() => console.log("Sem permissão para nick."));
+      } catch (e) { console.log("Erro no processamento: " + e.message); }
     }
 
+    const canalId = isAprovar ? "1475596732292137021" : "1475705535700664330";
+    const canalFinal = interaction.guild.channels.cache.get(canalId);
+    
     const embedFinal = new EmbedBuilder()
       .setColor(isAprovar ? '#77dd77' : '#ff6961')
       .setTitle(isAprovar ? '🏮 Membro Aceite no Clã' : '❌ Candidatura Recusada')
@@ -147,7 +153,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// --- REGISTO E SERVER ---
+// --- REGISTO ---
 const commands = [
   new SlashCommandBuilder().setName('setup').setDescription('Cria o botão de candidatura'),
   new SlashCommandBuilder().setName('julgar').setDescription('Tribunal Sakura')
