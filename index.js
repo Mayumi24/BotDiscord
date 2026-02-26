@@ -25,93 +25,76 @@ const client = new Client({
   ]
 });
 
-// --- SISTEMA DE BASE DE DADOS (JSON) ---
+// --- GESTÃO DE DADOS (RANKING) ---
 const DB_FILE = 'prisao.json';
-function lerDados() {
-  if (!fs.existsSync(DB_FILE)) return {};
-  return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-}
-function salvarDados(dados) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(dados, null, 2));
-}
+const lerDados = () => fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) : {};
+const salvarDados = (d) => fs.writeFileSync(DB_FILE, JSON.stringify(d, null, 2));
 
-// --- INTERAÇÕES ---
 client.on('interactionCreate', async interaction => {
   
-  // 1. COMANDO /JULGAR (TRIBUNAL)
+  // 1. COMANDO DE JULGAMENTO (TRIBUNAL)
   if (interaction.isChatInputCommand() && interaction.commandName === 'julgar') {
     const alvo = interaction.options.getMember('usuario');
     const veredito = interaction.options.getString('veredito');
-    const motivo = interaction.options.getString('motivo') || "Respirar sem licença";
-    
+    const motivo = interaction.options.getString('motivo') || "Culpado de ser chato";
+    const canalPrisaoId = "1476577042857201684"; // ID da tua aba Prisao
+
     if (veredito === 'culpado') {
       const dados = lerDados();
-      const userId = alvo.id;
-      
-      if (!dados[userId]) dados[userId] = { user: alvo.user.tag, crimes: 0 };
-      dados[userId].crimes += 1;
-      
-      const tempoMinutos = 5 + ((dados[userId].crimes - 1) * 5);
+      dados[alvo.id] = { user: alvo.user.tag, crimes: (dados[alvo.id]?.crimes || 0) + 1 };
       salvarDados(dados);
 
-      // Ranking Top 3
-      const ranking = Object.values(dados)
-        .sort((a, b) => b.crimes - a.crimes)
-        .slice(0, 3)
-        .map((u, i) => `${i + 1}º **${u.user}**: ${u.crimes} crimes`)
-        .join('\n');
+      const tempoMin = 5 + ((dados[alvo.id].crimes - 1) * 5); // Pena escala 5m por crime
+      const ranking = Object.values(dados).sort((a,b) => b.crimes - a.crimes).slice(0,3)
+        .map((u, i) => `${i+1}º **${u.user}**: ${u.crimes} crimes`).join('\n');
 
       try {
-        const cargoPrisao = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro");
-        if (cargoPrisao) await alvo.roles.add(cargoPrisao); // Adiciona sem remover outros
-        await alvo.timeout(tempoMinutos * 60 * 1000, `Sentença: ${motivo}`);
-      } catch (err) { console.error("Erro nas permissões:", err); }
+        // Usa o nome exato do cargo com o emoji
+        const cargo = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro 🚨");
+        if (cargo) await alvo.roles.add(cargo); 
+        await alvo.timeout(tempoMin * 60 * 1000, motivo); // Timeout real do Discord
+      } catch (e) { console.error("Erro ao aplicar punição. Verifica a hierarquia!"); }
 
-      const embedCulpado = new EmbedBuilder()
-        .setColor('#FFFF00') // Amarelo (estilo balão de aviso)
-        .setTitle('⚠️ **SENTENÇA PROFERIDA: CULPADO!** ⚠️')
+      const embed = new EmbedBuilder()
+        .setColor('#FFFF00') // Amarelo estilo balão de aviso
+        .setTitle('⚖️ **SENTENÇA PROFERIDA** ⚖️')
         .setThumbnail('https://i.imgur.com/8S77vS7.png')
-        .setDescription(
-          `🚨 **RÉU:** ${alvo}\n` +
-          `💢 **CRIME:** ${motivo}\n` +
-          `⏳ **PENA:** ${tempoMinutos} minutos\n\n` +
-          `🏆 **RANKING DE CRIMINOSOS:**\n${ranking}`
-        )
-        .setImage('https://i.imgur.com/6pYV59C.png') // Balão de cartoon
-        .setFooter({ text: 'A justiça é cega, mas o bot vê tudo!' });
+        .setDescription(`🚨 ${alvo} foi preso!\n\n**Motivo:** ${motivo}\n**Pena:** ${tempoMin} min\n\n🏆 **RANKING DE CRIMINOSOS:**\n${ranking}`)
+        .setImage('https://i.imgur.com/6pYV59C.png'); // Balão de cartoon
 
-      await interaction.reply({ content: `📢 ${alvo} foi preso!`, embeds: [embedCulpado] });
+      const canalPrisao = interaction.guild.channels.cache.get(canalPrisaoId);
+      if (canalPrisao) {
+        await canalPrisao.send({ content: `🚨 **DETENTO CHEGANDO:** ${alvo}`, embeds: [embed] });
+        await interaction.reply({ content: `Sentença aplicada! Vê em <#${canalPrisaoId}>`, ephemeral: true });
+      } else {
+        await interaction.reply({ embeds: [embed] });
+      }
 
       // REMOÇÃO AUTOMÁTICA DO CARGO
       setTimeout(async () => {
         try {
-          const cargo = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro");
-          if (cargo && alvo.roles.cache.has(cargo.id)) {
-            await alvo.roles.remove(cargo);
-            await interaction.channel.send(`🔓 **LIBERDADE:** ${alvo} cumpriu a pena.`);
-          }
-        } catch (e) { console.log("Erro ao soltar."); }
-      }, tempoMinutos * 60 * 1000);
+          const cargo = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro 🚨");
+          if (cargo) await alvo.roles.remove(cargo); 
+          if (canalPrisao) await canalPrisao.send(`🔓 **LIBERDADE:** ${alvo} cumpriu a pena.`);
+        } catch (e) {}
+      }, tempoMin * 60 * 1000);
 
     } else {
-      await interaction.reply({ content: `😂 **INOCENTE!** O réu ${alvo} fez um drama e foi solto.` });
+      await interaction.reply({ content: `😂 **INOCENTE!** O réu ${alvo} fez um teatro e foi solto.` });
     }
   }
 
   // 2. SISTEMA DE CANDIDATURAS (BOTÕES)
   if (interaction.isButton()) {
-    const isAprovar = interaction.customId.startsWith('aprovar_');
-    const isRecusar = interaction.customId.startsWith('recusar_');
-
-    if (isAprovar || isRecusar) {
+    if (interaction.customId.startsWith('aprovar_') || interaction.customId.startsWith('recusar_')) {
+      const isAprovar = interaction.customId.startsWith('aprovar_');
       const canalId = isAprovar ? "1475596732292137021" : "1475705535700664330";
       const canal = interaction.guild.channels.cache.get(canalId);
       
       const embedFinal = new EmbedBuilder()
         .setColor(isAprovar ? '#77dd77' : '#ff6961')
         .setTitle(isAprovar ? '🌸 Candidatura Aceite' : '❌ Candidatura Recusada')
-        .setDescription(`🛡️ **Staff:** ${interaction.user}\n\n**Dados:**\n${interaction.message.content}`)
-        .setTimestamp();
+        .setDescription(`🛡️ **Staff:** ${interaction.user}\n\n**Dados:**\n${interaction.message.content}`);
 
       if (canal) await canal.send({ embeds: [embedFinal] });
       await interaction.message.delete();
@@ -119,41 +102,47 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (interaction.customId === 'abrir_form') {
-      const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Candidatura');
-      const inputs = ['Nome', 'Roblox', 'Idade', 'Recrutador'].map(label => 
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId(label.toLowerCase()).setLabel(label).setStyle(TextInputStyle.Short)
-        )
+      const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Ficha de Candidatura');
+      const campos = ['Nome', 'Roblox', 'Idade', 'Recrutador'].map(c => 
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId(c.toLowerCase()).setLabel(c).setStyle(TextInputStyle.Short))
       );
-      modal.addComponents(...inputs);
+      modal.addComponents(...campos);
       await interaction.showModal(modal);
     }
   }
 
-  // 3. RECEBIMENTO DO FORMULÁRIO
+  // 3. RECEBIMENTO DO FORMULÁRIO (MODAL)
   if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
     const staffCanal = interaction.guild.channels.cache.get("1475596507456475146");
-    const nome = interaction.fields.getTextInputValue('nome');
-    const roblox = interaction.fields.getTextInputValue('roblox');
+    const dados = `👤 **Candidato:** ${interaction.user}\n📝 **Nome:** ${interaction.fields.getTextInputValue('nome')}\n🎮 **Roblox:** ${interaction.fields.getTextInputValue('roblox')}`;
     
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel('Aprovar').setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`recusar_${interaction.user.id}`).setLabel('Recusar').setStyle(ButtonStyle.Danger)
     );
 
-    const msg = `👤 **Utilizador:** ${interaction.user}\n📝 **Nome:** ${nome}\n🎮 **Roblox:** ${roblox}`;
-    await staffCanal.send({ content: msg, components: [row] });
-    await interaction.reply({ content: "Enviado! 🌸", ephemeral: true });
+    await staffCanal.send({ content: dados, components: [row] });
+    await interaction.reply({ content: "Enviado com sucesso! 🌸", ephemeral: true });
   }
 });
 
-// --- REGISTRO DE COMANDOS ---
+// --- REGISTO DOS COMANDOS SLASH ---
 const commands = [
-  new SlashCommandBuilder().setName('setup').setDescription('Painel de Candidatura'),
-  new SlashCommandBuilder().setName('julgar').setDescription('Julgamento do Tribunal')
+  new SlashCommandBuilder().setName('setup').setDescription('Cria o botão de candidatura'),
+  new SlashCommandBuilder().setName('julgar').setDescription('Tribunal Sakura')
     .addUserOption(o => o.setName('usuario').setDescription('O réu').setRequired(true))
     .addStringOption(o => o.setName('veredito').setDescription('Culpado ou Inocente?').setRequired(true).addChoices({name:'Culpado', value:'culpado'}, {name:'Inocente', value:'inocente'}))
-    .addStringOption(o => o.setName('motivo').setDescription('O crime'))
+    .addStringOption(o => o.setName('motivo').setDescription('O crime cometido'))
 ].map(c => c.toJSON());
 
-const rest = new REST({ version: '10' }).setToken(process.env.TOKEN
+const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+(async () => {
+  try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); } catch (e) { console.error(e); }
+})();
+
+// --- SERVIDOR PARA O RENDER ---
+const app = express();
+app.get("/", (req, res) => res.send("Bot Sakura Online 🔥"));
+app.listen(process.env.PORT || 3000, '0.0.0.0');
+
+client.login(process.env.TOKEN);
