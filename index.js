@@ -131,20 +131,9 @@ if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
   content: "Candidatura enviada com sucesso!",
   ephemeral: true
 });
+
   }
- 
-  const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
-
-  if (canalAprovados) {
-  const candidaturaTexto = interaction.message.content;
-
-  await canalAprovados.send({
-    content: `✅ CANDIDATURA APROVADA por ${interaction.user}\n\n${candidaturaTexto}`
-  });
-}
-
-await interaction.update({
-  components: []
+  
 });
 if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
 
