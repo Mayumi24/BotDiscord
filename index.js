@@ -33,29 +33,55 @@ function logCandidatura(mensagem) {
 
 client.once('ready', async () => {
   console.log('Bot online!');
-});
+  });
 client.on('interactionCreate', async interaction => {
  if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
 
- const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
+  const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
+  if (!canalAprovados) return;
 
-  if (canalAprovados) {
+  const candidaturaTexto = interaction.message.content;
 
-    const candidaturaTexto = interaction.message.content;
+  await canalAprovados.send({
+    content: `✅ **CANDIDATURA APROVADA**
 
-    await canalAprovados.send({
-      content: `✅ **CANDIDATURA APROVADA**
+👤 Utilizador: ${interaction.user}
+🛡️ Aprovado por: ${interaction.member}
 
-👮 Aprovado por: ${interaction.user}
-
+━━━━━━━━━━━━━━━━━━
 ${candidaturaTexto}`
-    });
-  }
+  });
 
   await interaction.message.delete();
 
   await interaction.reply({
-    content: "✅ Candidatura aprovada!",
+    content: "✅ Candidatura movida para aprovados!",
+    ephemeral: true
+  });
+}
+
+});
+if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
+
+  const canalRecusados = interaction.guild.channels.cache.get("1475705535700664330");
+  if (!canalRecusados) return;
+
+  const candidaturaTexto = interaction.message.content;
+
+  await canalRecusados.send({
+    content: `❌ **CANDIDATURA RECUSADA**
+
+👤 Utilizador: ${interaction.user}
+🛡️ Recusado por: ${interaction.member}
+
+━━━━━━━━━━━━━━━━━━
+${candidaturaTexto}`
+  });
+
+  await interaction.message.delete();
+
+  await interaction.reply({
+    content: "❌ Candidatura movida para recusados!",
     ephemeral: true
   });
 }
@@ -133,32 +159,8 @@ if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
 });
 
   }
-  
-});
-if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
 
-  const canalRecusados = interaction.guild.channels.cache.get("ID_DO_CANAL_RECUSADOS");
 
-  if (canalRecusados) {
-
-    const candidaturaTexto = interaction.message.content;
-
-    await canalRecusados.send({
-      content: `❌ **CANDIDATURA RECUSADA**
-
-👮 Recusado por: ${interaction.user}
-
-${candidaturaTexto}`
-    });
-  }
-
-  await interaction.message.delete();
-
-  await interaction.reply({
-    content: "❌ Candidatura recusada!",
-    ephemeral: true
-  });
-}
 
 const commands = [
   new SlashCommandBuilder()
