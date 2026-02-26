@@ -18,18 +18,22 @@ client.on('interactionCreate', async interaction => {
       
       if (!canalDestino) return interaction.reply({ content: "❌ Canal não encontrado!", ephemeral: true });
 
+      let statusExtras = "";
+
       if (isAprovar) {
         try {
           const membro = await interaction.guild.members.fetch(candidatoId);
-          // CARGO FAMÍLIA ATUALIZADO
           const cargoFamiliaId = "1470481510284132544"; 
-          await membro.roles.add(cargoFamiliaId);
-
-          // TAG AUTOMÁTICA [𝒀𝑲𝒁𝒙𝑭𝑴𝑳]
-          const novoNome = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${membro.user.username}`;
-          await membro.setNickname(novoNome);
+          
+          // Tenta dar o cargo
+          await membro.roles.add(cargoFamiliaId).catch(() => statusExtras += "\n⚠️ Não consegui dar o cargo (Verifica a hierarquia).");
+          
+          // Tenta mudar a tag
+          await membro.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${membro.user.username}`).catch(() => statusExtras += "\n⚠️ Não consegui mudar a TAG (Pode ser o Dono ou falta de permissão).");
+          
+          if (statusExtras === "") statusExtras = "\n✅ Cargo e TAG aplicados com sucesso!";
         } catch (e) {
-          console.error("Erro ao aplicar cargo/tag:", e);
+          statusExtras = "\n❌ Erro crítico ao processar o membro.";
         }
       }
 
@@ -41,7 +45,7 @@ client.on('interactionCreate', async interaction => {
 
       await canalDestino.send({ embeds: [novoEmbed] });
       await interaction.message.delete();
-      return interaction.reply({ content: isAprovar ? `✅ Aprovado! Cargo entregue e tag [𝒀𝑲𝒁𝒙𝑭𝑴𝑳] aplicada.` : `❌ Candidatura recusada.`, ephemeral: true });
+      return interaction.reply({ content: `Decisão registada.${statusExtras}`, ephemeral: true });
     }
 
     if (interaction.customId === 'abrir_form') {
@@ -67,7 +71,6 @@ client.on('interactionCreate', async interaction => {
       .setColor(0x990000) 
       .setTitle('🏮 Nova Ficha de Recrutamento')
       .setThumbnail(interaction.guild.iconURL()) 
-      .setDescription(`Um novo membro deseja honrar o nosso clã.`)
       .addFields(
         { name: '👤 Membro', value: `${interaction.user}`, inline: true },
         { name: '📝 Nome Real', value: nome, inline: true },
@@ -84,7 +87,7 @@ client.on('interactionCreate', async interaction => {
     );
 
     await staffCanal.send({ embeds: [embedStaff], components: [row] });
-    await interaction.reply({ content: "Ficha enviada para os superiores!", ephemeral: true });
+    await interaction.reply({ content: "Ficha enviada!", ephemeral: true });
   }
 });
 
@@ -100,5 +103,5 @@ const app = express();
 app.get("/", (req, res) => res.send("Bot Online"));
 app.listen(process.env.PORT || 3000, '0.0.0.0');
 
-client.once('ready', () => console.log('May Online - Cargo Família e Tag Configurados!'));
+client.once('ready', () => console.log('May Online!'));
 client.login(process.env.TOKEN);
