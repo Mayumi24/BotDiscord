@@ -1,5 +1,3 @@
-// index.js do Bot Discord completo com .env e batch + logs
-
 import fs from 'fs';
 import { 
   Client, 
@@ -26,74 +24,43 @@ const client = new Client({
   ]
 });
 
-// --- FUNÇÃO DE LOGS ---
-function logCandidatura(mensagem) {
-  const logLine = `[${new Date().toLocaleString()}] ${mensagem}\n`;
-  fs.appendFileSync('logs_candidaturas.txt', logLine);
-}
-
-// --- EVENTO DE INTERAÇÃO (BOTÕES E FORMULÁRIO) ---
+// --- LOGICA DE BOTÕES (APROVAR/RECUSAR) ---
 client.on('interactionCreate', async interaction => {
-  
-  // 1. LÓGICA DOS BOTÕES (APROVAR / RECUSAR)
   if (interaction.isButton()) {
     const isAprovar = interaction.customId.startsWith('aprovar_');
     const isRecusar = interaction.customId.startsWith('recusar_');
 
     if (isAprovar || isRecusar) {
-      // IDs dos Canais (Verifique se estes são os IDs corretos no seu servidor)
+      // IDs dos Canais (conforme seu script anterior)
       const canalDestinoId = isAprovar ? "1475596732292137021" : "1475705535700664330";
       const canalDestino = interaction.guild.channels.cache.get(canalDestinoId);
       
-      if (!canalDestino) {
-        return interaction.reply({ content: "❌ Canal de destino não encontrado!", ephemeral: true });
-      }
+      if (!canalDestino) return interaction.reply({ content: "❌ Canal não encontrado!", ephemeral: true });
 
-      // Recupera o conteúdo da candidatura que estava na mensagem
       const candidaturaConteudo = interaction.message.content;
-      const statusEmoji = isAprovar ? "✅" : "❌";
-      const statusTexto = isAprovar ? "APROVADA" : "RECUSADA";
+      const status = isAprovar ? "✅ APROVADA" : "❌ RECUSADA";
 
-      // Envia para o canal final com o nome do Staff que clicou
+      // Envia para o canal final identificando o Staff
       await canalDestino.send({
-        content: `${statusEmoji} **CANDIDATURA ${statusTexto}**\n\n` +
-                 `🛡️ **Staff Responsável:** ${interaction.user}\n` +
-                 `━━━━━━━━━━━━━━━━━━\n` +
-                 `${candidaturaConteudo}`
+        content: `**CANDIDATURA ${status}**\n🛡️ **Staff:** ${interaction.user}\n━━━━━━━━━━━━━━━━━━\n${candidaturaConteudo}`
       });
 
-      // Apaga a mensagem original do canal de pendentes
       await interaction.message.delete();
-
-      return interaction.reply({
-        content: `Candidatura movida para ${isAprovar ? "aprovados" : "recusados"}!`,
-        ephemeral: true
-      });
+      return interaction.reply({ content: `Candidatura movida!`, ephemeral: true });
     }
 
-    // 2. LÓGICA PARA ABRIR O MODAL
     if (interaction.customId === 'abrir_form') {
-      const modal = new ModalBuilder()
-        .setCustomId('form_comunidade')
-        .setTitle('Candidatura Comunidade');
-
-      const nome = new TextInputBuilder().setCustomId('nome').setLabel('Qual é o teu nome?').setStyle(TextInputStyle.Short);
-      const robloxUser = new TextInputBuilder().setCustomId('roblox').setLabel('User do Roblox').setStyle(TextInputStyle.Short);
-      const idade = new TextInputBuilder().setCustomId('idade').setLabel('Qual é a tua idade?').setStyle(TextInputStyle.Short);
-      const recrutador = new TextInputBuilder().setCustomId('recrutador').setLabel('Quem te recrutou?').setStyle(TextInputStyle.Short);
-
+      const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Candidatura');
       modal.addComponents(
-        new ActionRowBuilder().addComponents(nome),
-        new ActionRowBuilder().addComponents(robloxUser),
-        new ActionRowBuilder().addComponents(idade),
-        new ActionRowBuilder().addComponents(recrutador)
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nome').setLabel('Nome').setStyle(TextInputStyle.Short)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('roblox').setLabel('User Roblox').setStyle(TextInputStyle.Short)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('idade').setLabel('Idade').setStyle(TextInputStyle.Short)),
+        new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('recrutador').setLabel('Recrutador').setStyle(TextInputStyle.Short))
       );
-
       await interaction.showModal(modal);
     }
   }
 
-  // 3. LÓGICA DO ENVIO DO FORMULÁRIO (MODAL)
   if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
     const nome = interaction.fields.getTextInputValue('nome');
     const roblox = interaction.fields.getTextInputValue('roblox');
@@ -103,61 +70,32 @@ client.on('interactionCreate', async interaction => {
     const staffCanal = interaction.guild.channels.cache.get("1475596507456475146");
     if (!staffCanal) return;
 
-    const aprovar = new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel('Aprovar').setStyle(ButtonStyle.Success);
-    const recusar = new ButtonBuilder().setCustomId(`recusar_${interaction.user.id}`).setLabel('Recusar').setStyle(ButtonStyle.Danger);
-    const row = new ActionRowBuilder().addComponents(aprovar, recusar);
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel('Aprovar').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`recusar_${interaction.user.id}`).setLabel('Recusar').setStyle(ButtonStyle.Danger)
+    );
 
-    const mensagem = `📋 **Nova Candidatura**\n👤 **Utilizador:** ${interaction.user}\n📝 **Nome:** ${nome}\n🎮 **User do Roblox:** ${roblox}\n🎂 **Idade:** ${idade}\n🤝 **Quem recrutou:** ${recrutador}`;
+    const mensagem = `📋 **Nova Candidatura**\n👤 **Utilizador:** ${interaction.user}\n📝 **Nome:** ${nome}\n🎮 **User:** ${roblox}\n🎂 **Idade:** ${idade}\n🤝 **Recrutador:** ${recrutador}`;
     
     await staffCanal.send({ content: mensagem, components: [row] });
-    logCandidatura(mensagem);
-    
-    await interaction.reply({ content: "Candidatura enviada com sucesso!", ephemeral: true });
+    await interaction.reply({ content: "Enviado!", ephemeral: true });
   }
 });
 
-// --- REGISTRO DE COMANDOS SLASH (/setup) ---
-const commands = [
-  new SlashCommandBuilder().setName('setup').setDescription('Enviar painel de candidatura')
-].map(command => command.toJSON());
-
+// --- REGISTRO DO COMANDO /SETUP ---
+const commands = [new SlashCommandBuilder().setName('setup').setDescription('Painel de candidatura')].map(c => c.toJSON());
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 
 (async () => {
   try {
-    await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-      { body: commands }
-    );
-    console.log('Comando /setup registrado!');
-  } catch (error) {
-    console.error('Erro ao registrar comandos:', error);
-  }
+    await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
+    console.log('Comando /setup ok!');
+  } catch (e) { console.error(e); }
 })();
 
-// --- EVENTO: NOVO MEMBRO ---
-client.on('guildMemberAdd', async (member) => {
-    const role = member.guild.roles.cache.find(r => r.name === "Sem cargo");
-    if (role) {
-        try {
-            await member.roles.add(role);
-            console.log(`Cargo adicionado a ${member.user.tag}`);
-        } catch (err) {
-            console.error("Erro ao adicionar cargo:", err);
-        }
-    }
-});
-
-// --- SERVIDOR WEB (OBRIGATÓRIO PARA O RENDER) ---
+// --- SERVIDOR PARA O RENDER ---
 const app = express();
-app.get("/", (req, res) => res.send("Bot Online 🔥"));
-app.get("/health", (req, res) => res.json({ status: "ok" }));
+app.get("/", (req, res) => res.send("Bot Vivo 🔥"));
+app.listen(process.env.PORT || 3000, '0.0.0.0');
 
-const port = process.env.PORT || 3000;
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Web server running on port ${port}`);
-});
-
-// --- LOGIN DO BOT ---
-client.once('ready', () => console.log('May está online!'));
 client.login(process.env.TOKEN);
