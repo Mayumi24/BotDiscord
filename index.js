@@ -60,10 +60,26 @@ client.on('interactionCreate', async interaction => {
       const canalPrisao = interaction.guild.channels.cache.get(canalPrisaoId);
       if (canalPrisao) await canalPrisao.send({ embeds: [embed] });
       await interaction.reply({ content: `✅ Sentença aplicada!`, ephemeral: true });
+    } else {
+      await interaction.reply({ content: `Inocente! ${alvo} está livre.` });
     }
   }
 
-  // 2. ABRIR FORMULÁRIO (NÃO ALTERA NOME AQUI)
+  // 2. COMANDO PARA SOLTAR (REMOVE CARGO E TIMEOUT)
+  if (interaction.isChatInputCommand() && interaction.commandName === 'soltar') {
+    const alvo = interaction.options.getMember('usuario');
+    const cargoPrisaoId = "1476573034855796927";
+
+    try {
+      await alvo.roles.remove(cargoPrisaoId);
+      await alvo.timeout(null); 
+      await interaction.reply({ content: `✅ ${alvo} foi libertado e o cargo de prisioneiro removido!` });
+    } catch (e) {
+      await interaction.reply({ content: "Erro: Verifique se meu cargo está acima do cargo de Prisioneiro.", ephemeral: true });
+    }
+  }
+
+  // 3. ABRIR FORMULÁRIO (NÃO ALTERA NOME AQUI)
   if (interaction.isButton() && interaction.customId === 'abrir_form') {
     const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Ficha de Candidatura');
     const campos = [
@@ -76,7 +92,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // 3. RECEBER FORMULÁRIO (ENVIA PARA PENDENTES SEM MUDAR O NICK)
+  // 4. RECEBER FORMULÁRIO (PENDENTES LIMPOS)
   if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
     await interaction.reply({ content: "Sua ficha foi enviada para análise! 🌸", ephemeral: true });
 
@@ -101,26 +117,24 @@ client.on('interactionCreate', async interaction => {
     if (staffCanal) await staffCanal.send({ embeds: [embedStaff], components: [row] });
   }
 
-  // 4. APROVAR (ENTREGA CARGO, MUDA NICK E REMOVE "SEM CARGO")
+  // 5. APROVAR (ENTREGA CARGO, MUDA NICK E REMOVE "SEM CARGO")
   if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
     const alvoId = interaction.customId.split('_')[1];
     const alvo = await interaction.guild.members.fetch(alvoId);
     const embedAntigo = interaction.message.embeds[0];
 
     try {
-      // 1. Adiciona o cargo de Família e remove o cargo "Sem Cargo"
-      await alvo.roles.add("1470481510284132544"); // | Familia
-      await alvo.roles.remove("1472350861719113893"); // | Sem Cargo
+      // Adiciona Família e Remove Sem Cargo
+      await alvo.roles.add("1470481510284132544"); 
+      await alvo.roles.remove("1472350861719113893"); 
 
-      // 2. Extrai o nome da ficha limpando símbolos
+      // Puxa o Nome Real da ficha
       const desc = embedAntigo.description;
       const match = desc.match(/Nome Real:\s*(.*)/);
       let nomeFicha = match ? match[1].replace(/[*_~]/g, '').trim().split('\n')[0] : alvo.user.username;
 
-      // 3. Aplica a Tag estilizada
       await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha}`).catch(() => console.log("Erro no Nick."));
 
-      // 4. Log de Aprovação
       const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
       if (canalAprovados) {
         const embedFinal = new EmbedBuilder()
@@ -132,16 +146,12 @@ client.on('interactionCreate', async interaction => {
       }
 
       await interaction.message.delete();
-      await interaction.reply({ content: "Aprovado e cargos atualizados!", ephemeral: true });
-
-    } catch (e) {
-      console.log("Erro na aprovação: " + e.message);
-    }
+      await interaction.reply({ content: "Aprovado!", ephemeral: true });
+    } catch (e) { console.log(e.message); }
   }
 
-  // 5. RECUSAR
+  // 6. RECUSAR
   if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
-    const alvoId = interaction.customId.split('_')[1];
     const canalRecusados = interaction.guild.channels.cache.get("1475705535700664330");
     if (canalRecusados) {
       const embedFinal = new EmbedBuilder()
@@ -158,6 +168,7 @@ client.on('interactionCreate', async interaction => {
 // --- REGISTO DE COMANDOS ---
 const commands = [
   new SlashCommandBuilder().setName('setup').setDescription('Botão candidatura'),
+  new SlashCommandBuilder().setName('soltar').setDescription('Liberta um prisioneiro').addUserOption(o => o.setName('usuario').setDescription('O prisioneiro').setRequired(true)),
   new SlashCommandBuilder().setName('julgar').setDescription('Tribunal')
     .addUserOption(o => o.setName('usuario').setDescription('O réu').setRequired(true))
     .addStringOption(o => o.setName('veredito').setDescription('Veredito').setRequired(true).addChoices({name:'Culpado', value:'culpado'}, {name:'Inocente', value:'inocente'}))
