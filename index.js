@@ -21,15 +21,15 @@ client.on('interactionCreate', async interaction => {
       if (isAprovar) {
         try {
           const membro = await interaction.guild.members.fetch(candidatoId);
-          // 1. ADICIONA O CARGO (Certifica-te que o ID do cargo "Família" está correto abaixo)
-          const cargoFamiliaId = "1475596167126192231"; // Usa o ID do cargo Família aqui
+          // CARGO FAMÍLIA ATUALIZADO
+          const cargoFamiliaId = "1470481510284132544"; 
           await membro.roles.add(cargoFamiliaId);
 
-          // 2. MUDA O NOME PARA A TAG [𝒀𝑲𝒁𝒙𝑭𝑴𝑳]
+          // TAG AUTOMÁTICA [𝒀𝑲𝒁𝒙𝑭𝑴𝑳]
           const novoNome = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${membro.user.username}`;
           await membro.setNickname(novoNome);
         } catch (e) {
-          console.error("Erro ao dar cargo/tag:", e);
+          console.error("Erro ao aplicar cargo/tag:", e);
         }
       }
 
@@ -41,7 +41,7 @@ client.on('interactionCreate', async interaction => {
 
       await canalDestino.send({ embeds: [novoEmbed] });
       await interaction.message.delete();
-      return interaction.reply({ content: isAprovar ? `✅ Membro aprovado, cargo entregue e tag alterada!` : `❌ Recusado.`, ephemeral: true });
+      return interaction.reply({ content: isAprovar ? `✅ Aprovado! Cargo entregue e tag [𝒀𝑲𝒁𝒙𝑭𝑴𝑳] aplicada.` : `❌ Candidatura recusada.`, ephemeral: true });
     }
 
     if (interaction.customId === 'abrir_form') {
@@ -100,5 +100,5 @@ const app = express();
 app.get("/", (req, res) => res.send("Bot Online"));
 app.listen(process.env.PORT || 3000, '0.0.0.0');
 
-client.once('ready', () => console.log('May Online - Com Cargo e Tag Automática!'));
+client.once('ready', () => console.log('May Online - Cargo Família e Tag Configurados!'));
 client.login(process.env.TOKEN);
