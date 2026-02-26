@@ -12,20 +12,36 @@ client.on('interactionCreate', async interaction => {
     const isRecusar = interaction.customId.startsWith('recusar_');
 
     if (isAprovar || isRecusar) {
+      const candidatoId = interaction.customId.split('_')[1];
       const canalDestinoId = isAprovar ? "1475596732292137021" : "1475705535700664330";
       const canalDestino = interaction.guild.channels.cache.get(canalDestinoId);
+      
       if (!canalDestino) return interaction.reply({ content: "❌ Canal não encontrado!", ephemeral: true });
 
-      // Aqui garantimos que ele mantém o visual original (Ícone do clã e campos)
+      if (isAprovar) {
+        try {
+          const membro = await interaction.guild.members.fetch(candidatoId);
+          // 1. ADICIONA O CARGO (Certifica-te que o ID do cargo "Família" está correto abaixo)
+          const cargoFamiliaId = "1475596167126192231"; // Usa o ID do cargo Família aqui
+          await membro.roles.add(cargoFamiliaId);
+
+          // 2. MUDA O NOME PARA A TAG [𝒀𝑲𝒁𝒙𝑭𝑴𝑳]
+          const novoNome = `[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${membro.user.username}`;
+          await membro.setNickname(novoNome);
+        } catch (e) {
+          console.error("Erro ao dar cargo/tag:", e);
+        }
+      }
+
       const embedOriginal = interaction.message.embeds[0];
       const novoEmbed = EmbedBuilder.from(embedOriginal)
-        .setColor(isAprovar ? 0x2ecc71 : 0xe74c3c) // Verde para aprovado, Vermelho para recusado
+        .setColor(isAprovar ? 0x2ecc71 : 0xe74c3c)
         .setTitle(isAprovar ? "🏮 Membro Aceite no Clã" : "⚔️ Membro Recusado")
         .addFields({ name: '🛡️ Decidido por:', value: `${interaction.user}`, inline: false });
 
       await canalDestino.send({ embeds: [novoEmbed] });
       await interaction.message.delete();
-      return interaction.reply({ content: `Candidatura arquivada com sucesso.`, ephemeral: true });
+      return interaction.reply({ content: isAprovar ? `✅ Membro aprovado, cargo entregue e tag alterada!` : `❌ Recusado.`, ephemeral: true });
     }
 
     if (interaction.customId === 'abrir_form') {
@@ -84,5 +100,5 @@ const app = express();
 app.get("/", (req, res) => res.send("Bot Online"));
 app.listen(process.env.PORT || 3000, '0.0.0.0');
 
-client.once('ready', () => console.log('May está online! Sistema de balões fixos ativado.'));
+client.once('ready', () => console.log('May Online - Com Cargo e Tag Automática!'));
 client.login(process.env.TOKEN);
