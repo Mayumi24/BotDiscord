@@ -1,54 +1,38 @@
 import fs from 'fs';
-import { 
-  Client, 
-  GatewayIntentBits, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  ModalBuilder, 
-  TextInputBuilder, 
-  TextInputStyle, 
-  REST, 
-  Routes, 
-  SlashCommandBuilder,
-  EmbedBuilder 
-} from 'discord.js';
+import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, REST, Routes, SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import express from 'express';
 import 'dotenv/config';
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
-  ]
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers]
 });
 
-// --- GESTÃO DE DADOS ---
+// --- GESTÃO DE PRISÃO ---
 const DB_FILE = 'prisao.json';
 const lerDados = () => fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) : {};
 const salvarDados = (d) => fs.writeFileSync(DB_FILE, JSON.stringify(d, null, 2));
 
 client.on('interactionCreate', async interaction => {
   
-  // 1. COMANDO DE JULGAMENTO
+  // 1. COMANDO DE JULGAMENTO (USANDO ID DO PRISIONEIRO)
   if (interaction.isChatInputCommand() && interaction.commandName === 'julgar') {
     const alvo = interaction.options.getMember('usuario');
     const veredito = interaction.options.getString('veredito');
-    const motivo = interaction.options.getMember('usuario') ? interaction.options.getString('motivo') || "Sem motivo" : "Sem motivo";
+    const motivo = interaction.options.getString('motivo') || "Sem motivo especificado";
+    const canalPrisaoId = "1476577042857201684";
 
     if (veredito === 'culpado') {
       const dados = lerDados();
       dados[alvo.id] = { user: alvo.user.tag, crimes: (dados[alvo.id]?.crimes || 0) + 1 };
       salvarDados(dados);
+
       const tempoMin = 5 + ((dados[alvo.id].crimes - 1) * 5);
-      
+
       try {
-        const cargoPrisao = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro 🚨");
-        if (cargoPrisao) await alvo.roles.add(cargoPrisao); 
+        const cargoPrisaoId = "1476573034855796927"; // ID que forneceste
+        await alvo.roles.add(cargoPrisaoId); 
         await alvo.timeout(tempoMin * 60 * 1000, motivo); 
-      } catch (e) { console.log("Erro permissão: Alvo imune."); }
+      } catch (e) { console.log("Erro permissão Prisão: " + e.message); }
 
       const embed = new EmbedBuilder()
         .setColor('#FFFF00')
@@ -56,11 +40,15 @@ client.on('interactionCreate', async interaction => {
         .setDescription(`👤 **Membro:** ${alvo}\n📝 **Motivo:** ${motivo}\n⏳ **Pena:** ${tempoMin} min`)
         .setFooter({ text: 'Honra e Lealdade - Sistema May 🌸' });
 
-      await interaction.reply({ embeds: [embed] });
+      const canalPrisao = interaction.guild.channels.cache.get(canalPrisaoId);
+      if (canalPrisao) await canalPrisao.send({ embeds: [embed] });
+      await interaction.reply({ content: `✅ Sentença aplicada!`, ephemeral: true });
+    } else {
+      await interaction.reply({ content: `😂 ${alvo} foi considerado inocente!` });
     }
   }
 
-  // 2. ABRIR FORMULÁRIO (NÃO DÁ CARGO AQUI!)
+  // 2. ABRIR FORMULÁRIO
   if (interaction.isButton() && interaction.customId === 'abrir_form') {
     const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Ficha de Candidatura');
     const campos = [
@@ -73,15 +61,14 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // 3. RECEBER FORMULÁRIO (SÓ ENVIA PARA STAFF)
+  // 3. RECEBER FORMULÁRIO
   if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
-    await interaction.reply({ content: "Enviado para análise da Staff! 🌸", ephemeral: true });
+    await interaction.reply({ content: "Sua ficha foi enviada! 🌸", ephemeral: true });
 
     const staffCanal = interaction.guild.channels.cache.get("1475596507456475146");
     const embedStaff = new EmbedBuilder()
       .setColor('#2b2d31')
       .setTitle('🏮 Nova Ficha de Recrutamento')
-      .setThumbnail(interaction.guild.iconURL())
       .setDescription(
         `👤 **Membro:** ${interaction.user}\n` +
         `📝 **Nome Real:** ${interaction.fields.getTextInputValue('nome')}\n` +
@@ -99,7 +86,7 @@ client.on('interactionCreate', async interaction => {
     if (staffCanal) await staffCanal.send({ embeds: [embedStaff], components: [row] });
   }
 
-  // 4. APROVAR / RECUSAR (O CARGO SÓ É DADO AQUI!)
+  // 4. APROVAR / RECUSAR
   if (interaction.isButton() && (interaction.customId.startsWith('aprovar_') || interaction.customId.startsWith('recusar_'))) {
     const isAprovar = interaction.customId.startsWith('aprovar_');
     const alvoId = interaction.customId.split('_')[1];
@@ -108,17 +95,14 @@ client.on('interactionCreate', async interaction => {
 
     if (isAprovar) {
       try {
-        // 1. CARGO SÓ AO CLICAR EM APROVAR
-        await alvo.roles.add("1470481510284132544");
+        await alvo.roles.add("1470481510284132544"); // Cargo Familia
 
-        // 2. BUSCA DO NOME CORRIGIDA (EVITA UNDEFINED)
         const desc = embedAntigo.description;
-        const match = desc.match(/Nome Real:\s*(.*)/); // Procura o texto após "Nome Real:"
-        const nomeReal = match ? match[1].split('\n')[0].trim() : "Membro";
+        const match = desc.match(/Nome Real:\s*(.*)/);
+        let nomeFicha = match ? match[1].replace(/[*_~]/g, '').trim().split('\n')[0] : alvo.user.username;
 
-        // 3. TAG [𝒀𝑲𝒁𝒙𝑭𝑴𝑳]
-        await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeReal}`).catch(() => console.log("Erro Nick."));
-      } catch (e) { console.log("Erro: " + e.message); }
+        await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha}`).catch(() => console.log("Erro Nick."));
+      } catch (e) { console.log("Erro Aprovação: " + e.message); }
     }
 
     const canalId = isAprovar ? "1475596732292137021" : "1475705535700664330";
@@ -127,10 +111,8 @@ client.on('interactionCreate', async interaction => {
     if (canalFinal) {
       const embedFinal = new EmbedBuilder()
         .setColor(isAprovar ? '#77dd77' : '#ff6961')
-        .setTitle(isAprovar ? '🏮 Membro Aceite no Clã' : '❌ Candidatura Recusada')
-        .setDescription(embedAntigo.description + `\n\n🛡️ **Decidido por:** ${interaction.user}`)
-        .setFooter({ text: 'Honra e Lealdade - Sistema May 🌸' });
-      
+        .setTitle(isAprovar ? '🏮 Membro Aceite' : '❌ Recusado')
+        .setDescription(embedAntigo.description + `\n\n🛡️ **Decidido por:** ${interaction.user}`);
       await canalFinal.send({ content: isAprovar ? `Parabéns ${alvo}!` : "", embeds: [embedFinal] });
     }
 
@@ -139,7 +121,6 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// --- REGISTO ---
 const commands = [
   new SlashCommandBuilder().setName('setup').setDescription('Botão candidatura'),
   new SlashCommandBuilder().setName('julgar').setDescription('Tribunal')
