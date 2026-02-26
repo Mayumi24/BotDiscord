@@ -49,10 +49,10 @@ client.on('interactionCreate', async interaction => {
         .map((u, i) => `${i+1}º **${u.user}**: ${u.crimes} crimes`).join('\n');
 
       try {
-        const cargo = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro 🚨");
-        if (cargo) await alvo.roles.add(cargo); 
+        const cargoPrisao = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro 🚨");
+        if (cargoPrisao) await alvo.roles.add(cargoPrisao); 
         await alvo.timeout(tempoMin * 60 * 1000, motivo); 
-      } catch (e) { console.log("Imunidade: Alvo é Admin ou Dono."); }
+      } catch (e) { console.log("Imunidade detectada."); }
 
       const embed = new EmbedBuilder()
         .setColor('#FFFF00')
@@ -71,41 +71,29 @@ client.on('interactionCreate', async interaction => {
         await canalPrisao.send({ content: `🚨 **DETENTO CHEGANDO:** ${alvo}`, embeds: [embed] });
         await interaction.reply({ content: `✅ Sentença aplicada!`, ephemeral: true });
       }
-
-      setTimeout(async () => {
-        try {
-          const cargo = interaction.guild.roles.cache.find(r => r.name === "Prisioneiro 🚨");
-          if (cargo) await alvo.roles.remove(cargo); 
-        } catch (e) {}
-      }, tempoMin * 60 * 1000);
-
     } else {
       await interaction.reply({ content: `😂 ${alvo} foi considerado inocente!` });
     }
   }
 
-  // 2. ABRIR FORMULÁRIO (COM CAMPO RECRUTADOR)
+  // 2. ABRIR FORMULÁRIO
   if (interaction.isButton() && interaction.customId === 'abrir_form') {
     const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Ficha de Candidatura');
-    
     const campos = [
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nome').setLabel('Nome Real').setStyle(TextInputStyle.Short).setRequired(true)),
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('roblox').setLabel('Roblox User').setStyle(TextInputStyle.Short).setRequired(true)),
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('idade').setLabel('Idade').setStyle(TextInputStyle.Short).setRequired(true)),
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('recrutador').setLabel('Quem te recrutou?').setStyle(TextInputStyle.Short).setRequired(true))
     ];
-
     modal.addComponents(...campos);
     await interaction.showModal(modal);
   }
 
-  // 3. RECEBER FORMULÁRIO (CORREÇÃO DE ERRO E VISUAL YAKUZA)
+  // 3. RECEBER FORMULÁRIO
   if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
-    // Resposta imediata para evitar erro no Render
-    await interaction.reply({ content: "Sua ficha foi enviada para a Staff! 🌸", ephemeral: true });
+    await interaction.reply({ content: "Sua ficha foi enviada para a Staff! 🌸", ephemeral: true }); // Resposta imediata p/ evitar erro 40060
 
     const staffCanal = interaction.guild.channels.cache.get("1475596507456475146");
-    
     const embedStaff = new EmbedBuilder()
       .setColor('#2b2d31')
       .setTitle('🏮 Nova Ficha de Recrutamento')
@@ -117,8 +105,7 @@ client.on('interactionCreate', async interaction => {
         `🎂 **Idade:** ${interaction.fields.getTextInputValue('idade')}\n` +
         `🤝 **Recrutador:** ${interaction.fields.getTextInputValue('recrutador')}`
       )
-      .setFooter({ text: 'Honra e Lealdade - Sistema May 🌸' })
-      .setTimestamp();
+      .setFooter({ text: 'Honra e Lealdade - Sistema May 🌸' });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel('Aprovar').setStyle(ButtonStyle.Success),
@@ -128,14 +115,25 @@ client.on('interactionCreate', async interaction => {
     if (staffCanal) await staffCanal.send({ embeds: [embedStaff], components: [row] });
   }
 
-  // 4. APROVAR / RECUSAR
+  // 4. APROVAR / RECUSAR (TAG E CARGO AUTOMÁTICOS)
   if (interaction.isButton() && (interaction.customId.startsWith('aprovar_') || interaction.customId.startsWith('recusar_'))) {
     const isAprovar = interaction.customId.startsWith('aprovar_');
+    const alvoId = interaction.customId.split('_')[1];
+    const alvo = await interaction.guild.members.fetch(alvoId);
+    
     const canalId = isAprovar ? "1475596732292137021" : "1475705535700664330";
     const canalFinal = interaction.guild.channels.cache.get(canalId);
-    
-    // Recupera os dados do embed original para manter o visual
     const embedAntigo = interaction.message.embeds[0];
+
+    if (isAprovar) {
+      try {
+        const cargoFamiliaId = "1470481510284132544"; // ID fornecido
+        await alvo.roles.add(cargoFamiliaId);
+
+        const nomeReal = embedAntigo.description.split('\n')[1].split(': ')[1]; 
+        await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeReal}`).catch(() => console.log("Erro no Nick.")); // Tag estilizada
+      } catch (e) { console.log("Erro permissão cargo: " + e.message); }
+    }
 
     const embedFinal = new EmbedBuilder()
       .setColor(isAprovar ? '#77dd77' : '#ff6961')
@@ -143,13 +141,13 @@ client.on('interactionCreate', async interaction => {
       .setDescription(embedAntigo.description + `\n\n🛡️ **Decidido por:** ${interaction.user}`)
       .setFooter({ text: 'Honra e Lealdade - Sistema May 🌸' });
 
-    if (canalFinal) await canalFinal.send({ content: isAprovar ? `Parabéns ${embedAntigo.description.split('\n')[0].split(' ')[2]}!` : "", embeds: [embedFinal] });
+    if (canalFinal) await canalFinal.send({ content: isAprovar ? `Parabéns ${alvo}!` : "", embeds: [embedFinal] });
     await interaction.message.delete();
-    await interaction.reply({ content: "Decisão registada!", ephemeral: true });
+    await interaction.reply({ content: "Processo concluído!", ephemeral: true });
   }
 });
 
-// --- SETUP E SERVER ---
+// --- REGISTO E SERVER ---
 const commands = [
   new SlashCommandBuilder().setName('setup').setDescription('Cria o botão de candidatura'),
   new SlashCommandBuilder().setName('julgar').setDescription('Tribunal Sakura')
@@ -160,11 +158,10 @@ const commands = [
 
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
-  try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); } catch (e) { console.error(e); }
+  try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); } catch (e) {}
 })();
 
 const app = express();
-app.get("/", (req, res) => res.send("Bot Sakura Online 🔥"));
+app.get("/", (req, res) => res.send("Bot Online"));
 app.listen(process.env.PORT || 3000, '0.0.0.0');
-
 client.login(process.env.TOKEN);
