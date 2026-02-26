@@ -1,18 +1,19 @@
 // index.js do Bot Discord completo com .env e batch + logs
 
 const fs = require('fs');
-const { 
-  Client, 
-  GatewayIntentBits, 
-  ActionRowBuilder, 
-  ButtonBuilder, 
+const {
+  Client,
+  GatewayIntentBits,
+  ActionRowBuilder,
+  ButtonBuilder,
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
   REST,
   Routes,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  EmbedBuilder
 } = require('discord.js');
 
 const client = new Client({
@@ -33,49 +34,32 @@ function logCandidatura(mensagem) {
 client.once('ready', async () => {
   console.log('Bot online!');
 });
-
-
 client.on('interactionCreate', async interaction => {
-  if (interaction.isButton() && interaction.customId === "aprovar") {
+ if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
 
-    const cargoId = "1470481510284132544";
+ const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
 
-    const userId = interaction.message.embeds[0].footer.text;
+  if (canalAprovados) {
 
-    const member = await interaction.guild.members.fetch(userId);
+    const candidaturaTexto = interaction.message.content;
 
-    await member.roles.add(cargoId);
+    await canalAprovados.send({
+      content: `✅ **CANDIDATURA APROVADA**
 
-    const nomeBase = member.user.username;
+👮 Aprovado por: ${interaction.user}
 
-    if (!member.displayName.startsWith('[YKZxFML]')) {
-        await member.setNickname(`[YKZxFML] ${nomeBase}`);
-    }
-
-    await interaction.reply({
-        content: "✅ Usuário aprovado com sucesso!",
-        ephemeral: true
+${candidaturaTexto}`
     });
-}
-// 🔹 Comando /setup
-  if (interaction.isChatInputCommand()) {
-    if (interaction.commandName === 'setup') {
-
-      const botao = new ButtonBuilder()
-        .setCustomId('abrir_form')
-        .setLabel('📩 Fazer Candidatura')
-        .setStyle(ButtonStyle.Primary);
-
-      const row = new ActionRowBuilder().addComponents(botao);
-
-      await interaction.reply({
-        content: 'Clica no botão para enviares a tua candidatura:',
-        components: [row]
-      });
-
-      return;
-    }
   }
+
+  await interaction.message.delete();
+
+  await interaction.reply({
+    content: "✅ Candidatura aprovada!",
+    ephemeral: true
+  });
+}
+
   if (interaction.isButton() && interaction.customId === 'abrir_form') {
 
     const modal = new ModalBuilder()
@@ -143,32 +127,50 @@ if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
 
     logCandidatura(mensagem);
 
-    await interaction.reply({ content: "Candidatura enviada com sucesso!", ephemeral: true });
+    await interaction.reply({
+  content: "Candidatura enviada com sucesso!",
+  ephemeral: true
+});
+  }
+ 
+  const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
+
+  if (canalAprovados) {
+  const candidaturaTexto = interaction.message.content;
+
+  await canalAprovados.send({
+    content: `✅ CANDIDATURA APROVADA por ${interaction.user}\n\n${candidaturaTexto}`
+  });
+}
+
+await interaction.update({
+  components: []
+});
+if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
+
+  const canalRecusados = interaction.guild.channels.cache.get("ID_DO_CANAL_RECUSADOS");
+
+  if (canalRecusados) {
+
+    const candidaturaTexto = interaction.message.content;
+
+    await canalRecusados.send({
+      content: `❌ **CANDIDATURA RECUSADA**
+
+👮 Recusado por: ${interaction.user}
+
+${candidaturaTexto}`
+    });
   }
 
-  if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
+  await interaction.message.delete();
 
-    const userId = interaction.customId.split('_')[1];
-    const membro = await interaction.guild.members.fetch(userId);
-
-    const cargoId = "1470481510284132544";
-
-    await membro.roles.add(cargoId);
-
-const nomeBase = membro.user.username;
-
-if (!membro.displayName.startsWith('[𝒀𝑲𝒁𝒙𝑭𝑴𝑳]')) {
-    await membro.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeBase}`);
-}
-    
-    const canalAprovados = interaction.guild.channels.cache.get("1475596732292137021");
-    if (canalAprovados) canalAprovados.send(`✅ <@${userId}> foi aprovado!`);
-
-    await interaction.message.delete();
-    await interaction.reply({ content: "Utilizador aprovado!", ephemeral: true });
+  await interaction.reply({
+    content: "❌ Candidatura recusada!",
+    ephemeral: true
+  });
 }
 
-});
 const commands = [
   new SlashCommandBuilder()
     .setName('setup')
@@ -191,9 +193,26 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
     console.error(error);
   }
 })();
-client.once('ready', async () => {
-  console.log('Bot online!');
+client.once('ready', () => {
+    console.log('Bot online!');
 });
+
+client.on('guildMemberAdd', async (member) => {
+    const role = member.guild.roles.cache.find(r => r.name === "Sem cargo");
+
+    if (!role) {
+        console.log("Cargo 'Sem cargo' não encontrado.");
+        return;
+    }
+
+    try {
+        await member.roles.add(role);
+        console.log(`Cargo 'Sem cargo' adicionado a ${member.user.tag}`);
+    } catch (err) {
+        console.error("Erro ao adicionar cargo:", err);
+    }
+});
+
 client.login(process.env.TOKEN);
 
 client.on("reconnecting", () => {
