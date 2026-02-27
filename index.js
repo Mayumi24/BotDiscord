@@ -25,15 +25,16 @@ const client = new Client({
   ]
 });
 
-// --- BANCO DE DADOS SIMPLES ---
 const DB_FILE = 'prisao.json';
 const lerDados = () => fs.existsSync(DB_FILE) ? JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) : {};
 const salvarDados = (d) => fs.writeFileSync(DB_FILE, JSON.stringify(d, null, 2));
 
 client.on('interactionCreate', async interaction => {
   
-  // 1. COMANDO JULGAR
+  // 1. COMANDO JULGAR (COM DEFER PARA NÃO DAR ERRO DE RESPOSTA)
   if (interaction.isChatInputCommand() && interaction.commandName === 'julgar') {
+    await interaction.deferReply(); // Diz ao Discord para esperar
+    
     const alvo = interaction.options.getMember('usuario');
     const veredito = interaction.options.getString('veredito');
     const motivo = interaction.options.getString('motivo') || "Sem motivo";
@@ -54,28 +55,29 @@ client.on('interactionCreate', async interaction => {
           .setDescription(`👤 **Réu:** ${alvo}\n📝 **Motivo:** ${motivo}\n⏳ **Pena:** ${tempoMin} min`)
           .setFooter({ text: 'Sistema May 🌸' });
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
       } catch (e) {
-        await interaction.reply({ content: "Erro de permissão: Verifique a hierarquia!", ephemeral: true });
+        await interaction.editReply({ content: "❌ Erro de permissão! Verifique se meu cargo está no topo da lista." });
       }
     } else {
-      await interaction.reply({ content: `⚖️ ${alvo} foi declarado inocente!` });
+      await interaction.editReply({ content: `⚖️ ${alvo} foi declarado inocente!` });
     }
   }
 
   // 2. COMANDO SOLTAR
   if (interaction.isChatInputCommand() && interaction.commandName === 'soltar') {
+    await interaction.deferReply();
     const alvo = interaction.options.getMember('usuario');
     try {
-      await alvo.roles.remove("1476573034855796927"); // Remove Prisioneiro
+      await alvo.roles.remove("1476573034855796927");
       await alvo.timeout(null);
-      await interaction.reply({ content: `✅ ${alvo} foi solto com sucesso!` });
+      await interaction.editReply({ content: `✅ ${alvo} foi solto com sucesso!` });
     } catch (e) {
-      await interaction.reply({ content: "Erro ao soltar: Verifique a hierarquia!", ephemeral: true });
+      await interaction.editReply({ content: "❌ Erro: Não consigo soltar este membro (Hierarquia baixa)." });
     }
   }
 
-  // 3. FORMULÁRIO (BOTÃO)
+  // 3. ABRIR FORMULÁRIO (ESTE NÃO PODE TER DEFER)
   if (interaction.isButton() && interaction.customId === 'abrir_form') {
     const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Ficha de Candidatura');
     modal.addComponents(
@@ -87,7 +89,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // 4. RECEBER FICHA (PENDENTES)
+  // 4. RECEBER FICHA
   if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
     const staffCanal = interaction.guild.channels.cache.get("1475596507456475146");
     const nome = interaction.fields.getTextInputValue('nome');
@@ -102,11 +104,11 @@ client.on('interactionCreate', async interaction => {
       new ButtonBuilder().setCustomId(`recusar_${interaction.user.id}`).setLabel('Recusar').setStyle(ButtonStyle.Danger)
     );
 
-    await staffCanal.send({ embeds: [embedStaff], components: [row] });
-    await interaction.reply({ content: "Ficha enviada!", ephemeral: true });
+    if (staffCanal) await staffCanal.send({ embeds: [embedStaff], components: [row] });
+    await interaction.reply({ content: "Ficha enviada com sucesso! 🌸", ephemeral: true });
   }
 
-  // 5. BOTÃO APROVAR
+  // 5. APROVAR
   if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
     const alvoId = interaction.customId.split('_')[1];
     const alvo = await interaction.guild.members.fetch(alvoId);
@@ -116,17 +118,19 @@ client.on('interactionCreate', async interaction => {
       await alvo.roles.remove("1472350861719113893"); // Remove Sem Cargo
       
       const nomeFicha = interaction.message.embeds[0].description.match(/Nome Real:\s*(.*)/)[1];
-      await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha.replace(/[*_~]/g, '')}`); //
+      await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha.replace(/[*_~]/g, '')}`).catch(() => {});
 
       await interaction.message.delete();
-      await interaction.reply({ content: "Membro aprovado!", ephemeral: true });
-    } catch (e) { console.log(e); }
+      await interaction.reply({ content: "Membro aprovado e cargos ajustados!", ephemeral: true });
+    } catch (e) {
+      await interaction.reply({ content: "Erro ao aprovar: Verifique minha posição nos cargos.", ephemeral: true });
+    }
   }
 });
 
-// --- SETUP COMANDOS ---
+// --- REGISTO DOS COMANDOS ---
 const commands = [
-  new SlashCommandBuilder().setName('julgar').setDescription('Tribunal')
+  new SlashCommandBuilder().setName('julgar').setDescription('Tribunal YKZ')
     .addUserOption(o => o.setName('usuario').setDescription('O réu').setRequired(true))
     .addStringOption(o => o.setName('veredito').setDescription('Culpado ou Inocente').setRequired(true).addChoices({name:'Culpado', value:'culpado'}, {name:'Inocente', value:'inocente'}))
     .addStringOption(o => o.setName('motivo').setDescription('Motivo do crime')),
@@ -138,7 +142,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
     await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
-    console.log("Comandos registrados!");
+    console.log("Comandos Registados!");
   } catch (e) { console.error(e); }
 })();
 
