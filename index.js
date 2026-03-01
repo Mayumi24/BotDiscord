@@ -2,46 +2,41 @@ import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle
 import express from 'express';
 import 'dotenv/config';
 
-const app = express();
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
+const app = express();
 
-// Canal de Logs/Pendentes para teste
-const CANAL_PENDENTES = "1475596507456475146";
-
-// Servidor para o Render não desligar o bot
-app.get("/", (req, res) => res.send("Bot YKZ está Vivo! 🏮"));
-app.listen(process.env.PORT || 3000, () => console.log("Servidor Web Ativo"));
+// Isso mantém o Render ativo
+app.get("/", (req, res) => res.send("Bot Online"));
+app.listen(process.env.PORT || 3000);
 
 client.on('ready', () => {
-  console.log(`✅ Logada como ${client.user.tag}!`);
+  console.log(`✅ ${client.user.tag} está ONLINE!`);
 });
 
 client.on('interactionCreate', async interaction => {
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('abrir_ficha_ok').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('fichav7').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
     );
-    await interaction.reply({ content: "🏮 Clique abaixo para iniciar:", components: [row] });
+    await interaction.reply({ content: "🏮 Clique abaixo:", components: [row] });
   }
 
-  if (interaction.isButton() && interaction.customId === 'abrir_ficha_ok') {
-    const modal = new ModalBuilder().setCustomId('modal_ok').setTitle('Recrutamento YKZ');
+  if (interaction.isButton() && interaction.customId === 'fichav7') {
+    const modal = new ModalBuilder().setCustomId('modalv7').setTitle('Recrutamento');
     modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('n').setLabel('Nome Real').setStyle(TextInputStyle.Short).setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('r').setLabel('Roblox').setStyle(TextInputStyle.Short).setRequired(true))
+      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('n').setLabel('Nome').setStyle(TextInputStyle.Short).setRequired(true))
     );
     await interaction.showModal(modal);
   }
 });
 
-// Registo de comandos
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
     await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { 
-      body: [new SlashCommandBuilder().setName('setup').setDescription('Criar botão')] 
+      body: [new SlashCommandBuilder().setName('setup').setDescription('Botão')] 
     });
-  } catch (e) { console.error(e); }
+  } catch (e) { console.error("Erro no Registro:", e); }
 })();
 
-client.login(process.env.TOKEN);
+client.login(process.env.TOKEN).catch(err => console.error("Erro no Login: Token Inválido!"));
