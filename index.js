@@ -16,16 +16,15 @@ const client = new Client({
 });
 
 // --- IDs DOS CARGOS E CANAIS ---
-const CARGO_FAMILIA = "1470481510284132544"; //
-const CARGO_SEM_CARGO = "1472350861719113893"; //
+const CARGO_FAMILIA = "1470481510284132544"; 
+const CARGO_SEM_CARGO = "1472350861719113893"; 
 const CANAL_PENDENTES = "1475596507456475146";
 const CANAL_APROVADOS = "1475596732292137021";
 
-// 1. AUTO-ROLE: DAR "SEM CARGO" ASSIM QUE ENTRA
+// 1. AUTO-ROLE: DAR CARGO ASSIM QUE ENTRA
 client.on('guildMemberAdd', async member => {
   try {
     await member.roles.add(CARGO_SEM_CARGO);
-    console.log(`Cargo inicial dado a ${member.user.tag}`);
   } catch (e) {
     console.error("Erro no auto-role:", e.message);
   }
@@ -33,17 +32,17 @@ client.on('guildMemberAdd', async member => {
 
 client.on('interactionCreate', async interaction => {
   
-  // 2. COMANDO SETUP
+  // 2. COMANDO /SETUP
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('abrir_ficha').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('abrir_ficha_final').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
     );
     await interaction.reply({ content: "🏮 **Recrutamento YKZ**\nClica no botão para enviares a tua ficha:", components: [row] });
   }
 
-  // 3. EXIBIR MODAL
-  if (interaction.isButton() && interaction.customId === 'abrir_ficha') {
-    const modal = new ModalBuilder().setCustomId('modal_ficha').setTitle('Ficha de Candidatura');
+  // 3. ABRIR FORMULÁRIO (MODAL)
+  if (interaction.isButton() && interaction.customId === 'abrir_ficha_final') {
+    const modal = new ModalBuilder().setCustomId('modal_ficha_final').setTitle('Ficha de Candidatura');
     modal.addComponents(
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nome').setLabel('Nome Real').setStyle(TextInputStyle.Short).setRequired(true)),
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('roblox').setLabel('Roblox User').setStyle(TextInputStyle.Short).setRequired(true)),
@@ -53,9 +52,10 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // 4. RECEBER FICHA
-  if (interaction.isModalSubmit() && interaction.customId === 'modal_ficha') {
-    await interaction.reply({ content: "Ficha enviada! 🌸", ephemeral: true });
+  // 4. RECEBER FORMULÁRIO
+  if (interaction.isModalSubmit() && interaction.customId === 'modal_ficha_final') {
+    // Resposta imediata para evitar o erro de "não respondeu"
+    await interaction.reply({ content: "Ficha enviada com sucesso! 🌸", ephemeral: true });
     
     const staffCanal = interaction.guild.channels.cache.get(CANAL_PENDENTES);
     const nome = interaction.fields.getTextInputValue('nome');
@@ -73,22 +73,22 @@ client.on('interactionCreate', async interaction => {
     if (staffCanal) await staffCanal.send({ embeds: [embed], components: [row] });
   }
 
-  // 5. BOTÃO APROVAR: TROCA DE CARGOS E NICK
+  // 5. BOTÃO APROVAR (TROCA CARGOS E MUDA NOME)
   if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
-    await interaction.deferUpdate();
-    const alvoId = interaction.customId.split('_')[1];
+    await interaction.deferUpdate(); // Avisa o Discord que está processando
     
+    const alvoId = interaction.customId.split('_')[1];
     try {
       const alvo = await interaction.guild.members.fetch(alvoId);
       
-      // Troca os cargos
+      // Dá Família e tira Sem Cargo
       await alvo.roles.add(CARGO_FAMILIA);
       await alvo.roles.remove(CARGO_SEM_CARGO);
       
-      // Ajusta o Nickname
+      // Pega o nome da embed
       const desc = interaction.message.embeds[0].description;
       const nomeMatch = desc.match(/Nome Real:\s*(.*)/);
-      const nomeFicha = nomeMatch ? nomeMatch[1].replace(/[*_~]/g, '').trim() : "Membro";
+      const nomeFicha = nomeMatch ? nomeMatch[1].trim() : "Membro";
 
       await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha}`).catch(() => {});
 
@@ -98,9 +98,15 @@ client.on('interactionCreate', async interaction => {
       await interaction.message.delete();
     } catch (e) { console.error(e); }
   }
+
+  // 6. BOTÃO RECUSAR
+  if (interaction.isButton() && interaction.customId.startsWith('recusar_')) {
+    await interaction.deferUpdate();
+    await interaction.message.delete();
+  }
 });
 
-// --- REGISTO DO COMANDO SETUP ---
+// REGISTRO DO COMANDO
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
@@ -110,5 +116,5 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
   } catch (e) { console.error(e); }
 })();
 
-express().get("/", (req, res) => res.send("Sistema YKZ Ativo")).listen(process.env.PORT || 3000);
+express().get("/", (req, res) => res.send("YKZ Ativo")).listen(process.env.PORT || 3000);
 client.login(process.env.TOKEN);
