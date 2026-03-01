@@ -15,34 +15,32 @@ const client = new Client({
   ]
 });
 
-// --- IDs DOS CARGOS E CANAIS ---
+// --- CONFIGURAÇÃO DE IDs (YKZ) ---
 const CARGO_FAMILIA = "1470481510284132544"; 
 const CARGO_SEM_CARGO = "1472350861719113893"; 
 const CANAL_PENDENTES = "1475596507456475146";
 const CANAL_APROVADOS = "1475596732292137021";
 
-// 1. AUTO-ROLE: DAR CARGO ASSIM QUE ENTRA
+// 1. AUTO-ROLE: DÁ O CARGO MAL A PESSOA ENTRA
 client.on('guildMemberAdd', async member => {
   try {
     await member.roles.add(CARGO_SEM_CARGO);
-  } catch (e) {
-    console.error("Erro no auto-role:", e.message);
-  }
+  } catch (e) { console.error("Erro no auto-role:", e.message); }
 });
 
 client.on('interactionCreate', async interaction => {
   
-  // 2. COMANDO /SETUP
+  // 2. COMANDO /SETUP (PARA CRIAR O BOTÃO)
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('abrir_ficha_final').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('abrir_ficha_v5').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
     );
     await interaction.reply({ content: "🏮 **Recrutamento YKZ**\nClica no botão para enviares a tua ficha:", components: [row] });
   }
 
-  // 3. ABRIR FORMULÁRIO (MODAL)
-  if (interaction.isButton() && interaction.customId === 'abrir_ficha_final') {
-    const modal = new ModalBuilder().setCustomId('modal_ficha_final').setTitle('Ficha de Candidatura');
+  // 3. ABRIR O FORMULÁRIO (MODAL)
+  if (interaction.isButton() && interaction.customId === 'abrir_ficha_v5') {
+    const modal = new ModalBuilder().setCustomId('modal_v5').setTitle('Ficha de Candidatura');
     modal.addComponents(
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nome').setLabel('Nome Real').setStyle(TextInputStyle.Short).setRequired(true)),
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('roblox').setLabel('Roblox User').setStyle(TextInputStyle.Short).setRequired(true)),
@@ -52,9 +50,9 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // 4. RECEBER FORMULÁRIO
-  if (interaction.isModalSubmit() && interaction.customId === 'modal_ficha_final') {
-    // Resposta imediata para evitar o erro de "não respondeu"
+  // 4. RECEBER A FICHA (ENVIA PARA O CANAL DE PENDENTES)
+  if (interaction.isModalSubmit() && interaction.customId === 'modal_v5') {
+    // Resposta rápida para o Discord não dar erro
     await interaction.reply({ content: "Ficha enviada com sucesso! 🌸", ephemeral: true });
     
     const staffCanal = interaction.guild.channels.cache.get(CANAL_PENDENTES);
@@ -73,30 +71,31 @@ client.on('interactionCreate', async interaction => {
     if (staffCanal) await staffCanal.send({ embeds: [embed], components: [row] });
   }
 
-  // 5. BOTÃO APROVAR (TROCA CARGOS E MUDA NOME)
+  // 5. BOTÃO APROVAR: TROCA DE CARGOS E MUDANÇA DE NOME
   if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
-    await interaction.deferUpdate(); // Avisa o Discord que está processando
+    await interaction.deferUpdate(); // Resolve o erro "Interação falhou"
     
     const alvoId = interaction.customId.split('_')[1];
     try {
       const alvo = await interaction.guild.members.fetch(alvoId);
       
-      // Dá Família e tira Sem Cargo
+      // Dá Familia e tira Sem Cargo ao mesmo tempo
       await alvo.roles.add(CARGO_FAMILIA);
       await alvo.roles.remove(CARGO_SEM_CARGO);
       
-      // Pega o nome da embed
+      // Extrai o nome real da embed para mudar o nick
       const desc = interaction.message.embeds[0].description;
       const nomeMatch = desc.match(/Nome Real:\s*(.*)/);
       const nomeFicha = nomeMatch ? nomeMatch[1].trim() : "Membro";
 
+      // Aplica a tag YKZ
       await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha}`).catch(() => {});
 
       const canalAprovados = interaction.guild.channels.cache.get(CANAL_APROVADOS);
       if (canalAprovados) await canalAprovados.send({ content: `✅ ${alvo} foi aprovado!`, embeds: [interaction.message.embeds[0]] });
       
       await interaction.message.delete();
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Erro na aprovação:", e.message); }
   }
 
   // 6. BOTÃO RECUSAR
@@ -106,7 +105,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// REGISTRO DO COMANDO
+// REGISTO DO COMANDO SETUP
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
@@ -116,5 +115,5 @@ const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
   } catch (e) { console.error(e); }
 })();
 
-express().get("/", (req, res) => res.send("YKZ Ativo")).listen(process.env.PORT || 3000);
+express().get("/", (req, res) => res.send("Sistema YKZ Online")).listen(process.env.PORT || 3000);
 client.login(process.env.TOKEN);
