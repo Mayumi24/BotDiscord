@@ -1,4 +1,3 @@
-import fs from 'fs';
 import { 
   Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, 
   ModalBuilder, TextInputBuilder, TextInputStyle, REST, Routes, 
@@ -8,28 +7,43 @@ import express from 'express';
 import 'dotenv/config';
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers 
+  ]
 });
 
-// --- IDs FIXOS (CONFORME AS TUAS IMAGENS) ---
-const CARGO_FAMILIA = "1470481510284132544";
-const CARGO_SEM_CARGO = "1472350861719113893";
-const CARGO_PRISIONEIRO = "1476573034855796927";
+// --- IDs DOS CARGOS E CANAIS ---
+const CARGO_FAMILIA = "1470481510284132544"; //
+const CARGO_SEM_CARGO = "1472350861719113893"; //
 const CANAL_PENDENTES = "1475596507456475146";
 const CANAL_APROVADOS = "1475596732292137021";
 
+// 1. AUTO-ROLE: DAR "SEM CARGO" ASSIM QUE ENTRA
+client.on('guildMemberAdd', async member => {
+  try {
+    await member.roles.add(CARGO_SEM_CARGO);
+    console.log(`Cargo inicial dado a ${member.user.tag}`);
+  } catch (e) {
+    console.error("Erro no auto-role:", e.message);
+  }
+});
+
 client.on('interactionCreate', async interaction => {
-  // 1. COMANDO SETUP
+  
+  // 2. COMANDO SETUP
   if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('abrir_form').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder().setCustomId('abrir_ficha').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
     );
-    await interaction.reply({ content: "Clica no botão para enviares a tua candidatura:", components: [row] });
+    await interaction.reply({ content: "🏮 **Recrutamento YKZ**\nClica no botão para enviares a tua ficha:", components: [row] });
   }
 
-  // 2. ABRIR MODAL
-  if (interaction.isButton() && interaction.customId === 'abrir_form') {
-    const modal = new ModalBuilder().setCustomId('form_comunidade').setTitle('Ficha de Candidatura');
+  // 3. EXIBIR MODAL
+  if (interaction.isButton() && interaction.customId === 'abrir_ficha') {
+    const modal = new ModalBuilder().setCustomId('modal_ficha').setTitle('Ficha de Candidatura');
     modal.addComponents(
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('nome').setLabel('Nome Real').setStyle(TextInputStyle.Short).setRequired(true)),
       new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('roblox').setLabel('Roblox User').setStyle(TextInputStyle.Short).setRequired(true)),
@@ -39,85 +53,62 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // 3. RECEBER MODAL
-  if (interaction.isModalSubmit() && interaction.customId === 'form_comunidade') {
-    try {
-      await interaction.reply({ content: "A enviar ficha...", ephemeral: true });
-      
-      const embedStaff = new EmbedBuilder()
-        .setColor('#2b2d31')
-        .setTitle('🏮 Nova Ficha de Recrutamento')
-        .setDescription(`👤 **Membro:** ${interaction.user}\n📝 **Nome Real:** ${interaction.fields.getTextInputValue('nome')}\n🎮 **Roblox:** ${interaction.fields.getTextInputValue('roblox')}\n🤝 **Recrutador:** ${interaction.fields.getTextInputValue('recrutador')}`);
+  // 4. RECEBER FICHA
+  if (interaction.isModalSubmit() && interaction.customId === 'modal_ficha') {
+    await interaction.reply({ content: "Ficha enviada! 🌸", ephemeral: true });
+    
+    const staffCanal = interaction.guild.channels.cache.get(CANAL_PENDENTES);
+    const nome = interaction.fields.getTextInputValue('nome');
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel('Aprovar').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId(`recusar_${interaction.user.id}`).setLabel('Recusar').setStyle(ButtonStyle.Danger)
-      );
+    const embed = new EmbedBuilder()
+      .setColor('#2b2d31')
+      .setTitle('🏮 Nova Ficha de Recrutamento')
+      .setDescription(`👤 **Membro:** ${interaction.user}\n📝 **Nome Real:** ${nome}\n🎮 **Roblox:** ${interaction.fields.getTextInputValue('roblox')}\n🤝 **Recrutador:** ${interaction.fields.getTextInputValue('recrutador')}`);
 
-      const canal = interaction.guild.channels.cache.get(CANAL_PENDENTES);
-      if (canal) await canal.send({ embeds: [embedStaff], components: [row] });
-      await interaction.editReply({ content: "Ficha enviada com sucesso! 🌸" });
-    } catch (e) { console.error(e); }
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`aprovar_${interaction.user.id}`).setLabel('Aprovar').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`recusar_${interaction.user.id}`).setLabel('Recusar').setStyle(ButtonStyle.Danger)
+    );
+
+    if (staffCanal) await staffCanal.send({ embeds: [embed], components: [row] });
   }
 
-  // 4. APROVAR
+  // 5. BOTÃO APROVAR: TROCA DE CARGOS E NICK
   if (interaction.isButton() && interaction.customId.startsWith('aprovar_')) {
+    await interaction.deferUpdate();
+    const alvoId = interaction.customId.split('_')[1];
+    
     try {
-      await interaction.deferUpdate();
-      const alvoId = interaction.customId.split('_')[1];
       const alvo = await interaction.guild.members.fetch(alvoId);
       
+      // Troca os cargos
       await alvo.roles.add(CARGO_FAMILIA);
       await alvo.roles.remove(CARGO_SEM_CARGO);
       
-      const nomeFicha = interaction.message.embeds[0].description.match(/Nome Real:\s*(.*)/)[1];
-      await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha.replace(/[*_~]/g, '')}`).catch(() => {});
+      // Ajusta o Nickname
+      const desc = interaction.message.embeds[0].description;
+      const nomeMatch = desc.match(/Nome Real:\s*(.*)/);
+      const nomeFicha = nomeMatch ? nomeMatch[1].replace(/[*_~]/g, '').trim() : "Membro";
 
-      const canalLog = interaction.guild.channels.cache.get(CANAL_APROVADOS);
-      if (canalLog) await canalLog.send({ content: `Parabéns ${alvo}!`, embeds: [interaction.message.embeds[0]] });
+      await alvo.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${nomeFicha}`).catch(() => {});
+
+      const canalAprovados = interaction.guild.channels.cache.get(CANAL_APROVADOS);
+      if (canalAprovados) await canalAprovados.send({ content: `✅ ${alvo} foi aprovado!`, embeds: [interaction.message.embeds[0]] });
       
       await interaction.message.delete();
     } catch (e) { console.error(e); }
   }
-
-  // 5. JULGAR / SOLTAR
-  if (interaction.isChatInputCommand()) {
-    await interaction.deferReply();
-    const alvo = interaction.options.getMember('usuario');
-    
-    if (interaction.commandName === 'julgar') {
-      try {
-        await alvo.roles.add(CARGO_PRISIONEIRO);
-        await interaction.editReply(`⚖️ ${alvo} foi preso.`);
-      } catch (e) { await interaction.editReply("Erro: Verifica a minha posição nos cargos."); }
-    }
-    
-    if (interaction.commandName === 'soltar') {
-      try {
-        await alvo.roles.remove(CARGO_PRISIONEIRO);
-        await alvo.timeout(null);
-        await interaction.editReply(`✅ ${alvo} foi solto.`);
-      } catch (e) { await interaction.editReply("Erro ao soltar."); }
-    }
-  }
 });
 
-// --- REGISTO ---
-const commands = [
-  new SlashCommandBuilder().setName('setup').setDescription('Botão candidatura'),
-  new SlashCommandBuilder().setName('soltar').setDescription('Liberta alguém').addUserOption(o => o.setName('usuario').setRequired(true).setDescription('Membro')),
-  new SlashCommandBuilder().setName('julgar').setDescription('Tribunal')
-    .addUserOption(o => o.setName('usuario').setRequired(true).setDescription('Réu'))
-    .addStringOption(o => o.setName('veredito').setRequired(true).setDescription('Veredito').addChoices({name:'Culpado',value:'culpado'},{name:'Inocente',value:'inocente'}))
-].map(c => c.toJSON());
-
+// --- REGISTO DO COMANDO SETUP ---
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
-    await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
-    console.log("Comandos Registados!");
+    await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { 
+      body: [new SlashCommandBuilder().setName('setup').setDescription('Cria o botão de ficha')] 
+    });
   } catch (e) { console.error(e); }
 })();
 
-express().get("/", (req, res) => res.send("Online")).listen(process.env.PORT || 3000);
+express().get("/", (req, res) => res.send("Sistema YKZ Ativo")).listen(process.env.PORT || 3000);
 client.login(process.env.TOKEN);
