@@ -31,7 +31,7 @@ const client = new Client({
   ]
 });
 
-// ========= 🔧 COLOCA AQUI OS IDS =========
+// ========= 🔧 IDS =========
 const PENDENTES_ID = "1475596507456475146";
 const APROVADOS_ID = "1475596732292137021";
 const RECUSADOS_ID = "1475705535700664330";
@@ -71,6 +71,7 @@ client.on('interactionCreate', async interaction => {
 
   // ================= PAINEL =================
   if (interaction.isChatInputCommand() && interaction.commandName === 'setupykz') {
+
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('abrir_ficha')
@@ -91,21 +92,15 @@ client.on('interactionCreate', async interaction => {
       .setCustomId('modal_ykz')
       .setTitle('Ficha de Recrutamento');
 
-    const nome = new TextInputBuilder()
-      .setCustomId('nome')
-      .setLabel('Nome')
+    const roblox = new TextInputBuilder()
+      .setCustomId('roblox')
+      .setLabel('Nome no Roblox')
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
     const idade = new TextInputBuilder()
       .setCustomId('idade')
       .setLabel('Idade')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const roblox = new TextInputBuilder()
-      .setCustomId('roblox')
-      .setLabel('User do Roblox')
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
@@ -116,9 +111,8 @@ client.on('interactionCreate', async interaction => {
       .setRequired(true);
 
     modal.addComponents(
-      new ActionRowBuilder().addComponents(nome),
-      new ActionRowBuilder().addComponents(idade),
       new ActionRowBuilder().addComponents(roblox),
+      new ActionRowBuilder().addComponents(idade),
       new ActionRowBuilder().addComponents(recrutador)
     );
 
@@ -128,21 +122,23 @@ client.on('interactionCreate', async interaction => {
   // ================= ENVIAR CANDIDATURA =================
   if (interaction.isModalSubmit() && interaction.customId === 'modal_ykz') {
 
-    const nome = interaction.fields.getTextInputValue('nome');
-    const idade = interaction.fields.getTextInputValue('idade');
     const roblox = interaction.fields.getTextInputValue('roblox');
+    const idade = interaction.fields.getTextInputValue('idade');
     const recrutador = interaction.fields.getTextInputValue('recrutador');
 
     const embed = new EmbedBuilder()
-      .setTitle("📋 Nova Candidatura")
       .setColor("Red")
+      .setAuthor({
+        name: "📋 Nova Candidatura",
+        iconURL: interaction.guild.iconURL({ dynamic: true })
+      })
+      .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
       .addFields(
-        { name: "👤 Nome Real", value: nome },
-        { name: "🎂 Idade", value: idade },
-        { name: "🎮 Roblox User", value: roblox },
-        { name: "🤝 Recrutador", value: recrutador }
+        { name: "🎮 Nome no Roblox", value: roblox, inline: true },
+        { name: "🎂 Idade", value: idade, inline: true },
+        { name: "🤝 Recrutador", value: recrutador, inline: true }
       )
-      .setFooter({ text: `ID:${interaction.user.id}` });
+      .setFooter({ text: `Candidato ID: ${interaction.user.id}` });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -171,10 +167,13 @@ client.on('interactionCreate', async interaction => {
     const member = await interaction.guild.members.fetch(userId);
     const embedOriginal = interaction.message.embeds[0];
 
-    const nome = embedOriginal.fields[0].value;
-    const idade = embedOriginal.fields[1].value;
-    const roblox = embedOriginal.fields[2].value;
-    const recrutador = embedOriginal.fields[3].value;
+    // Buscar valores pelo nome do campo (não depende da ordem)
+    const getField = (name) =>
+      embedOriginal.fields.find(f => f.name === name)?.value || "Não informado";
+
+    const roblox = getField("🎮 Nome no Roblox");
+    const idade = getField("🎂 Idade");
+    const recrutador = getField("🤝 Recrutador");
 
     await member.roles.remove(SEM_CARGO_ID);
     await member.roles.add(FAMILIA_ID);
@@ -192,21 +191,23 @@ client.on('interactionCreate', async interaction => {
 
     const aprovados = await client.channels.fetch(APROVADOS_ID);
 
-    await aprovados.send(
-`━━━━━━━━━━━━━━━━━━
-🏮 **MEMBRO ACEITE NO CLÃ**
-━━━━━━━━━━━━━━━━━━
+    const embedAprovado = new EmbedBuilder()
+      .setColor("Green")
+      .setAuthor({
+        name: "🏮 Membro Aceite no Clã",
+        iconURL: interaction.guild.iconURL({ dynamic: true })
+      })
+      .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+      .addFields(
+        { name: "👤 Membro", value: `${member}` },
+        { name: "🎮 Nome no Roblox", value: roblox, inline: true },
+        { name: "🎂 Idade", value: idade, inline: true },
+        { name: "🤝 Recrutador", value: recrutador, inline: true },
+        { name: "🛡️ Aprovado por", value: `${interaction.user}` }
+      )
+      .setFooter({ text: "✨ Honra e Lealdade – Sistema May" });
 
-👤 **Membro:** ${member}
-📝 **Nome Real:** ${nome}
-🎮 **Roblox:** ${roblox}
-🎂 **Idade:** ${idade}
-🤝 **Recrutador:** ${recrutador}
-
-🛡️ **Aprovado por:** ${interaction.user}
-
-✨ Honra e Lealdade – Sistema May`
-    );
+    await aprovados.send({ embeds: [embedAprovado] });
   }
 
   // ================= RECUSAR =================
@@ -227,17 +228,16 @@ client.on('interactionCreate', async interaction => {
 
     const recusados = await client.channels.fetch(RECUSADOS_ID);
 
-    await recusados.send(
-`━━━━━━━━━━━━━━━━━━
-❌ **CANDIDATURA RECUSADA**
-━━━━━━━━━━━━━━━━━━
+    const embedRecusado = new EmbedBuilder()
+      .setColor("DarkRed")
+      .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+      .addFields(
+        { name: "👤 Membro", value: `<@${userId}>` },
+        { name: "🛡️ Recusado por", value: `${interaction.user}` }
+      )
+      .setFooter({ text: "📜 Sistema May" });
 
-👤 **Membro:** <@${userId}>
-
-🛡️ **Recusado por:** ${interaction.user}
-
-📜 Sistema May`
-    );
+    await recusados.send({ embeds: [embedRecusado] });
   }
 
 });
