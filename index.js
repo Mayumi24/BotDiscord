@@ -26,7 +26,8 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
   ]
 });
 
@@ -37,6 +38,15 @@ const RECUSADOS_ID = "1475705535700664330";
 
 const SEM_CARGO_ID = "1472350861719113893";
 const FAMILIA_ID = "1470481510284132544";
+
+// ================= DAR CARGO AUTOMÁTICO =================
+client.on("guildMemberAdd", async (member) => {
+  try {
+    await member.roles.add(SEM_CARGO_ID);
+  } catch (err) {
+    console.log("Erro ao dar cargo inicial:", err);
+  }
+});
 
 // ================= REGISTAR COMANDO =================
 client.on('ready', async () => {
@@ -115,7 +125,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // ENVIAR CANDIDATURA PARA PENDENTES
+  // ENVIAR CANDIDATURA
   if (interaction.isModalSubmit() && interaction.customId === 'modal_ykz') {
 
     const nome = interaction.fields.getTextInputValue('nome');
@@ -162,60 +172,42 @@ client.on('interactionCreate', async interaction => {
 
     const embedOriginal = interaction.message.embeds[0];
 
-    const nome = embedOriginal.fields[0].value;
-    const idade = embedOriginal.fields[1].value;
-    const roblox = embedOriginal.fields[2].value;
-    const recrutador = embedOriginal.fields[3].value;
-
     await member.roles.remove(SEM_CARGO_ID);
     await member.roles.add(FAMILIA_ID);
 
     await member.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${member.user.username}`);
 
+    const novoEmbed = EmbedBuilder.from(embedOriginal)
+      .setColor("Green")
+      .setTitle("✅ Candidatura Aprovada")
+      .addFields({ name: "Aprovado por", value: `${interaction.user}` });
+
+    await interaction.update({
+      embeds: [novoEmbed],
+      components: []
+    });
+
     const aprovados = await client.channels.fetch(APROVADOS_ID);
-
-    await aprovados.send(
-`🏮 **Membro Aceite no Clã**
-
-Membro: ${member}
-Nome Real: ${nome}
-Roblox User: ${roblox}
-Idade: ${idade}
-Recrutador: ${recrutador}`
-    );
-
-    await interaction.message.delete();
-    await interaction.reply({ content: "✅ Aprovado com sucesso.", ephemeral: true });
+    await aprovados.send({ embeds: [novoEmbed] });
   }
 
   // RECUSAR
   if (interaction.isButton() && interaction.customId.startsWith("recusar_")) {
 
-    const userId = interaction.customId.split("_")[1];
-    const member = await interaction.guild.members.fetch(userId);
-
     const embedOriginal = interaction.message.embeds[0];
 
-    const nome = embedOriginal.fields[0].value;
-    const idade = embedOriginal.fields[1].value;
-    const roblox = embedOriginal.fields[2].value;
-    const recrutador = embedOriginal.fields[3].value;
+    const novoEmbed = EmbedBuilder.from(embedOriginal)
+      .setColor("DarkRed")
+      .setTitle("❌ Candidatura Recusada")
+      .addFields({ name: "Recusado por", value: `${interaction.user}` });
+
+    await interaction.update({
+      embeds: [novoEmbed],
+      components: []
+    });
 
     const recusados = await client.channels.fetch(RECUSADOS_ID);
-
-    await recusados.send(
-`❌ **Candidatura Recusada**
-
-Membro: ${member}
-Nome Real: ${nome}
-Roblox User: ${roblox}
-Idade: ${idade}
-Recrutador: ${recrutador}
-Recusado por: ${interaction.user}`
-    );
-
-    await interaction.message.delete();
-    await interaction.reply({ content: "❌ Recusado.", ephemeral: true });
+    await recusados.send({ embeds: [novoEmbed] });
   }
 
 });
