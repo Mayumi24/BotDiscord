@@ -2,12 +2,12 @@ import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle
 import express from 'express';
 import 'dotenv/config';
 
-// 1. Configuração do Servidor Web para o Render
+// Servidor Web para manter o Render ativo
 const app = express();
-app.get("/", (req, res) => res.send("Bot May Online! 🏮"));
+app.get("/", (req, res) => res.send("Bot May está Online! 🏮"));
 app.listen(process.env.PORT || 3000, () => console.log("--- [WEB] Servidor Ativo ---"));
 
-// 2. Inicialização do Bot com os Intents corretos
+// Inicialização com Intents
 const client = new Client({ 
   intents: [
     GatewayIntentBits.Guilds, 
@@ -18,16 +18,15 @@ const client = new Client({
 });
 
 client.on('ready', () => {
-  console.log(`✅ [DISCORD] Logada com sucesso como: ${client.user.tag}`);
+  console.log(`✅ [DISCORD] Logado como: ${client.user.tag}`);
 });
 
-// 3. Gestão de Interações (Comando e Botão)
 client.on('interactionCreate', async interaction => {
-  // Comando Slash NOVO para evitar duplicados
+  // Comando Slash para o Painel
   if (interaction.isChatInputCommand() && interaction.commandName === 'painelykz') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('abrir_ficha_ykz_v1')
+        .setCustomId('abrir_ficha_ykz')
         .setLabel('Fazer Candidatura')
         .setStyle(ButtonStyle.Danger)
     );
@@ -38,52 +37,38 @@ client.on('interactionCreate', async interaction => {
     });
   }
 
-  // Quando clicam no botão da ficha
-  if (interaction.isButton() && interaction.customId === 'abrir_ficha_ykz_v1') {
+  // Lógica do Modal/Botão
+  if (interaction.isButton() && interaction.customId === 'abrir_ficha_ykz') {
     const modal = new ModalBuilder()
-      .setCustomId('modal_ykz_v1')
-      .setTitle('Recrutamento YAKUZA');
+      .setCustomId('modal_ykz')
+      .setTitle('Ficha de Recrutamento');
 
-    const nomeInput = new TextInputBuilder()
-      .setCustomId('nome_real')
-      .setLabel('Qual o seu nome e idade?')
+    const nome = new TextInputBuilder()
+      .setCustomId('nome')
+      .setLabel('Nome e Idade')
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
-    const robloxInput = new TextInputBuilder()
-      .setCustomId('nick_roblox')
-      .setLabel('Qual o seu Nick do Roblox?')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(nomeInput),
-      new ActionRowBuilder().addComponents(robloxInput)
-    );
-
+    modal.addComponents(new ActionRowBuilder().addComponents(nome));
     await interaction.showModal(modal);
   }
 });
 
-// 4. Registo de Comandos Globais
+// Registro dos Comandos
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
-    console.log("--- [REST] A atualizar comandos... ---");
     await rest.put(
       Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
       { body: [
           new SlashCommandBuilder()
             .setName('painelykz')
-            .setDescription('Envia o painel de recrutamento da Yakuza')
+            .setDescription('Envia o painel de recrutamento')
         ] 
       }
     );
-    console.log("--- [REST] Comandos sincronizados! ---");
-  } catch (error) {
-    console.error("❌ Erro ao registar comandos:", error);
-  }
+    console.log("--- [REST] Comando registrado! ---");
+  } catch (e) { console.error(e); }
 })();
 
-// 5. Login Final
 client.login(process.env.TOKEN);
