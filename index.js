@@ -70,8 +70,9 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// 4. O TOKEN NO FINAL (Como pediste)
-client.login(process.env.TOKEN).catch(err => {
-  console.log("❌ ERRO AO LOGAR NO DISCORD:");
-  console.log(err.message);
+client.login(process.env.TOKEN).then(() => {
+    console.log("🚀 CONEXÃO ESTABELECIDA COM SUCESSO!");
+}).catch(err => {
+    console.log("❌ ERRO FATAL NO LOGIN:");
+    console.log(err);
 });
