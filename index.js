@@ -2,12 +2,12 @@ import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle
 import express from 'express';
 import 'dotenv/config';
 
-// 1. SERVIDOR WEB (Para o Render não desligar o bot)
+// 1. Configuração do Servidor Web para o Render
 const app = express();
-app.get("/", (req, res) => res.send("Sistema YKZ Ativo! 🏮"));
-app.listen(process.env.PORT || 3000, () => console.log("--- [WEB] Servidor Ativo na porta 3000 ---"));
+app.get("/", (req, res) => res.send("Bot May Online! 🏮"));
+app.listen(process.env.PORT || 3000, () => console.log("--- [WEB] Servidor Ativo ---"));
 
-// 2. CONFIGURAÇÃO DO BOT (Com os Intents que ativaste)
+// 2. Inicialização do Bot com os Intents corretos
 const client = new Client({ 
   intents: [
     GatewayIntentBits.Guilds, 
@@ -18,40 +18,72 @@ const client = new Client({
 });
 
 client.on('ready', () => {
-  console.log(`✅ [DISCORD] SUCESSO! Logado como: ${client.user.tag}`);
+  console.log(`✅ [DISCORD] Logada com sucesso como: ${client.user.tag}`);
 });
 
-// 3. TRATAMENTO DE INTERAÇÕES (Com Defer para evitar erros das tuas imagens)
+// 3. Gestão de Interações (Comando e Botão)
 client.on('interactionCreate', async interaction => {
-  if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
+  // Comando Slash NOVO para evitar duplicados
+  if (interaction.isChatInputCommand() && interaction.commandName === 'painelykz') {
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('abrir_v11').setLabel('Fazer Candidatura').setStyle(ButtonStyle.Primary)
+      new ButtonBuilder()
+        .setCustomId('abrir_ficha_ykz_v1')
+        .setLabel('Fazer Candidatura')
+        .setStyle(ButtonStyle.Danger)
     );
-    await interaction.reply({ content: "🏮 **YKZ Recrutamento**\nClica abaixo para iniciar:", components: [row] });
+
+    await interaction.reply({ 
+      content: "🏮 **RECRUTAMENTO YAKUZA**\nClique no botão abaixo para iniciar a sua ficha.", 
+      components: [row] 
+    });
   }
 
-  if (interaction.isButton() && interaction.customId === 'abrir_v11') {
-    const modal = new ModalBuilder().setCustomId('mod_v11').setTitle('Ficha YKZ');
+  // Quando clicam no botão da ficha
+  if (interaction.isButton() && interaction.customId === 'abrir_ficha_ykz_v1') {
+    const modal = new ModalBuilder()
+      .setCustomId('modal_ykz_v1')
+      .setTitle('Recrutamento YAKUZA');
+
+    const nomeInput = new TextInputBuilder()
+      .setCustomId('nome_real')
+      .setLabel('Qual o seu nome e idade?')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const robloxInput = new TextInputBuilder()
+      .setCustomId('nick_roblox')
+      .setLabel('Qual o seu Nick do Roblox?')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
     modal.addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('n').setLabel('Nome').setStyle(TextInputStyle.Short).setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('r').setLabel('Roblox').setStyle(TextInputStyle.Short).setRequired(true))
+      new ActionRowBuilder().addComponents(nomeInput),
+      new ActionRowBuilder().addComponents(robloxInput)
     );
+
     await interaction.showModal(modal);
   }
 });
 
-// 4. REGISTO DE COMANDOS E LOGIN
+// 4. Registo de Comandos Globais
 const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
 (async () => {
   try {
-    await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { 
-      body: [new SlashCommandBuilder().setName('setup').setDescription('Iniciar Botão')] 
-    });
-    console.log("--- [REST] Comandos sincronizados com o servidor ---");
-  } catch (e) { console.error("--- [REST] Erro ao sincronizar:", e.message); }
+    console.log("--- [REST] A atualizar comandos... ---");
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: [
+          new SlashCommandBuilder()
+            .setName('painelykz')
+            .setDescription('Envia o painel de recrutamento da Yakuza')
+        ] 
+      }
+    );
+    console.log("--- [REST] Comandos sincronizados! ---");
+  } catch (error) {
+    console.error("❌ Erro ao registar comandos:", error);
+  }
 })();
 
-// Tenta o login e avisa se o Token estiver errado
-client.login(process.env.TOKEN).catch(err => {
-  console.error("❌ [LOGIN ERROR] O bot não ligou! Motivo:", err.message);
-});
+// 5. Login Final
+client.login(process.env.TOKEN);
