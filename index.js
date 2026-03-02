@@ -2,12 +2,11 @@ import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle
 import express from 'express';
 import 'dotenv/config';
 
-// 1. Servidor Web para o Render não desligar o bot
+// 1. Servidor Web para o Render
 const app = express();
 app.get("/", (req, res) => res.send("Bot May Online! 🏮"));
 app.listen(process.env.PORT || 3000, () => console.log("--- [WEB] Servidor Ativo ---"));
 
-// 2. Inicialização com os Intents que ativaste no Portal
 const client = new Client({ 
   intents: [
     GatewayIntentBits.Guilds, 
@@ -17,13 +16,30 @@ const client = new Client({
   ] 
 });
 
-client.on('ready', () => {
+// 2. Quando o bot liga, ele regista os comandos
+client.on('ready', async () => {
   console.log(`✅ [DISCORD] Logado como: ${client.user.tag}`);
+
+  const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+  try {
+    console.log("--- [REST] Atualizando comandos... ---");
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: [
+          new SlashCommandBuilder()
+            .setName('setupykz')
+            .setDescription('Envia o painel de recrutamento')
+        ] 
+      }
+    );
+    console.log("--- [REST] Comando /setupykz pronto! ---");
+  } catch (error) {
+    console.log("⚠️ Erro no REST (ID do Servidor ou Client ID podem estar errados):", error.message);
+  }
 });
 
-// 3. Lógica das Interações (Comando e Botão)
+// 3. Lógica do comando e botão
 client.on('interactionCreate', async interaction => {
-  // Comando Slash: AGORA O NOME É IGUAL EM TODO O LADO
   if (interaction.isChatInputCommand() && interaction.commandName === 'setupykz') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -38,7 +54,6 @@ client.on('interactionCreate', async interaction => {
     });
   }
 
-  // Lógica do Modal quando clicam no botão
   if (interaction.isButton() && interaction.customId === 'abrir_ficha_ykz') {
     const modal = new ModalBuilder()
       .setCustomId('modal_ykz')
@@ -55,25 +70,8 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// 4. Registo Automático do Comando no teu Servidor
-const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-(async () => {
-  try {
-    console.log("--- [REST] A registar comando /setupykz ---");
-    await rest.put(
-      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-      { body: [
-          new SlashCommandBuilder()
-            .setName('setupykz')
-            .setDescription('Envia o painel de recrutamento da Yakuza')
-        ] 
-      }
-    );
-    console.log("--- [REST] Comando registrado com sucesso! ---");
-  } catch (error) {
-    console.error("❌ Erro no REST:", error);
-  }
-})();
-
-// 5. Login usando a variável que configuraste no Render
-client.login(process.env.TOKEN);
+// 4. O TOKEN NO FINAL (Como pediste)
+client.login(process.env.TOKEN).catch(err => {
+  console.log("❌ ERRO AO LOGAR NO DISCORD:");
+  console.log(err.message);
+});
