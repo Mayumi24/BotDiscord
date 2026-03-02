@@ -69,7 +69,7 @@ client.on('ready', async () => {
 // ================= INTERAÇÕES =================
 client.on('interactionCreate', async interaction => {
 
-  // PAINEL
+  // ================= PAINEL =================
   if (interaction.isChatInputCommand() && interaction.commandName === 'setupykz') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -84,7 +84,7 @@ client.on('interactionCreate', async interaction => {
     });
   }
 
-  // ABRIR MODAL
+  // ================= ABRIR MODAL =================
   if (interaction.isButton() && interaction.customId === 'abrir_ficha') {
 
     const modal = new ModalBuilder()
@@ -125,7 +125,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.showModal(modal);
   }
 
-  // ENVIAR CANDIDATURA
+  // ================= ENVIAR CANDIDATURA =================
   if (interaction.isModalSubmit() && interaction.customId === 'modal_ykz') {
 
     const nome = interaction.fields.getTextInputValue('nome');
@@ -137,10 +137,10 @@ client.on('interactionCreate', async interaction => {
       .setTitle("📋 Nova Candidatura")
       .setColor("Red")
       .addFields(
-        { name: "Nome Real", value: nome },
-        { name: "Idade", value: idade },
-        { name: "Roblox User", value: roblox },
-        { name: "Recrutador", value: recrutador }
+        { name: "👤 Nome Real", value: nome },
+        { name: "🎂 Idade", value: idade },
+        { name: "🎮 Roblox User", value: roblox },
+        { name: "🤝 Recrutador", value: recrutador }
       )
       .setFooter({ text: `ID:${interaction.user.id}` });
 
@@ -164,23 +164,26 @@ client.on('interactionCreate', async interaction => {
     });
   }
 
-  // APROVAR
+  // ================= APROVAR =================
   if (interaction.isButton() && interaction.customId.startsWith("aprovar_")) {
 
     const userId = interaction.customId.split("_")[1];
     const member = await interaction.guild.members.fetch(userId);
-
     const embedOriginal = interaction.message.embeds[0];
+
+    const nome = embedOriginal.fields[0].value;
+    const idade = embedOriginal.fields[1].value;
+    const roblox = embedOriginal.fields[2].value;
+    const recrutador = embedOriginal.fields[3].value;
 
     await member.roles.remove(SEM_CARGO_ID);
     await member.roles.add(FAMILIA_ID);
-
     await member.setNickname(`[𝒀𝑲𝒁𝒙𝑭𝑴𝑳] ${member.user.username}`);
 
     const novoEmbed = EmbedBuilder.from(embedOriginal)
       .setColor("Green")
       .setTitle("✅ Candidatura Aprovada")
-      .addFields({ name: "Aprovado por", value: `${interaction.user}` });
+      .addFields({ name: "🛡️ Aprovado por", value: `${interaction.user}` });
 
     await interaction.update({
       embeds: [novoEmbed],
@@ -188,18 +191,34 @@ client.on('interactionCreate', async interaction => {
     });
 
     const aprovados = await client.channels.fetch(APROVADOS_ID);
-    await aprovados.send({ embeds: [novoEmbed] });
+
+    await aprovados.send(
+`━━━━━━━━━━━━━━━━━━
+🏮 **MEMBRO ACEITE NO CLÃ**
+━━━━━━━━━━━━━━━━━━
+
+👤 **Membro:** ${member}
+📝 **Nome Real:** ${nome}
+🎮 **Roblox:** ${roblox}
+🎂 **Idade:** ${idade}
+🤝 **Recrutador:** ${recrutador}
+
+🛡️ **Aprovado por:** ${interaction.user}
+
+✨ Honra e Lealdade – Sistema May`
+    );
   }
 
-  // RECUSAR
+  // ================= RECUSAR =================
   if (interaction.isButton() && interaction.customId.startsWith("recusar_")) {
 
+    const userId = interaction.customId.split("_")[1];
     const embedOriginal = interaction.message.embeds[0];
 
     const novoEmbed = EmbedBuilder.from(embedOriginal)
       .setColor("DarkRed")
       .setTitle("❌ Candidatura Recusada")
-      .addFields({ name: "Recusado por", value: `${interaction.user}` });
+      .addFields({ name: "🛡️ Recusado por", value: `${interaction.user}` });
 
     await interaction.update({
       embeds: [novoEmbed],
@@ -207,7 +226,18 @@ client.on('interactionCreate', async interaction => {
     });
 
     const recusados = await client.channels.fetch(RECUSADOS_ID);
-    await recusados.send({ embeds: [novoEmbed] });
+
+    await recusados.send(
+`━━━━━━━━━━━━━━━━━━
+❌ **CANDIDATURA RECUSADA**
+━━━━━━━━━━━━━━━━━━
+
+👤 **Membro:** <@${userId}>
+
+🛡️ **Recusado por:** ${interaction.user}
+
+📜 Sistema May`
+    );
   }
 
 });
