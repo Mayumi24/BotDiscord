@@ -31,13 +31,16 @@ const client = new Client({
   ]
 });
 
-// ========= 🔧 IDS =========
+// ========= IDS =========
 const PENDENTES_ID = "1475596507456475146";
 const APROVADOS_ID = "1475596732292137021";
 const RECUSADOS_ID = "1475705535700664330";
+const CHAT_GERAL_ID = "1470647545268146238";
 
 const SEM_CARGO_ID = "1472350861719113893";
 const FAMILIA_ID = "1470481510284132544";
+
+const COR_YAKUZA = "#B30000";
 
 // ================= DAR CARGO AUTOMÁTICO =================
 client.on("guildMemberAdd", async (member) => {
@@ -85,35 +88,35 @@ client.on('interactionCreate', async interaction => {
     });
   }
 
-  // ================= ABRIR MODAL =================
+  // ================= MODAL =================
   if (interaction.isButton() && interaction.customId === 'abrir_ficha') {
 
     const modal = new ModalBuilder()
       .setCustomId('modal_ykz')
       .setTitle('Ficha de Recrutamento');
 
-    const roblox = new TextInputBuilder()
-      .setCustomId('roblox')
-      .setLabel('Nome no Roblox')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const idade = new TextInputBuilder()
-      .setCustomId('idade')
-      .setLabel('Idade')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
-    const recrutador = new TextInputBuilder()
-      .setCustomId('recrutador')
-      .setLabel('Quem te recrutou?')
-      .setStyle(TextInputStyle.Short)
-      .setRequired(true);
-
     modal.addComponents(
-      new ActionRowBuilder().addComponents(roblox),
-      new ActionRowBuilder().addComponents(idade),
-      new ActionRowBuilder().addComponents(recrutador)
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('roblox')
+          .setLabel('Nome no Roblox')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('idade')
+          .setLabel('Idade')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('recrutador')
+          .setLabel('Quem te recrutou?')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+      )
     );
 
     await interaction.showModal(modal);
@@ -122,23 +125,27 @@ client.on('interactionCreate', async interaction => {
   // ================= ENVIAR CANDIDATURA =================
   if (interaction.isModalSubmit() && interaction.customId === 'modal_ykz') {
 
+    const guild = await interaction.guild.fetch();
+
     const roblox = interaction.fields.getTextInputValue('roblox');
     const idade = interaction.fields.getTextInputValue('idade');
     const recrutador = interaction.fields.getTextInputValue('recrutador');
 
     const embed = new EmbedBuilder()
-      .setColor("Red")
+      .setColor(COR_YAKUZA)
       .setAuthor({
-        name: "📋 Nova Candidatura",
-        iconURL: interaction.guild.iconURL({ dynamic: true })
+        name: `📋 Nova Candidatura — ${roblox}`,
+        iconURL: guild.iconURL({ dynamic: true })
       })
-      .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+      .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+      .setDescription("```yaml\nNova candidatura enviada para avaliação da liderança.\n```")
       .addFields(
-        { name: "🎮 Nome no Roblox", value: roblox, inline: true },
-        { name: "🎂 Idade", value: idade, inline: true },
-        { name: "🤝 Recrutador", value: recrutador, inline: true }
+        { name: "🎮 Nome no Roblox", value: `\`${roblox}\``, inline: true },
+        { name: "🎂 Idade", value: `\`${idade}\``, inline: true },
+        { name: "🧾 Roblox user", value: `${interaction.user}`, inline: true },
+        { name: "🤝 Quem te recrutou?", value: `\`${recrutador}\``, inline: true }
       )
-      .setFooter({ text: `Candidato ID: ${interaction.user.id}` });
+      .setFooter({ text: `ID: ${interaction.user.id}` });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -163,17 +170,18 @@ client.on('interactionCreate', async interaction => {
   // ================= APROVAR =================
   if (interaction.isButton() && interaction.customId.startsWith("aprovar_")) {
 
+    const guild = await interaction.guild.fetch();
+
     const userId = interaction.customId.split("_")[1];
     const member = await interaction.guild.members.fetch(userId);
     const embedOriginal = interaction.message.embeds[0];
 
-    // Buscar valores pelo nome do campo (não depende da ordem)
     const getField = (name) =>
       embedOriginal.fields.find(f => f.name === name)?.value || "Não informado";
 
     const roblox = getField("🎮 Nome no Roblox");
     const idade = getField("🎂 Idade");
-    const recrutador = getField("🤝 Recrutador");
+    const recrutador = getField("🤝 Quem te recrutou?");
 
     await member.roles.remove(SEM_CARGO_ID);
     await member.roles.add(FAMILIA_ID);
@@ -189,25 +197,54 @@ client.on('interactionCreate', async interaction => {
       components: []
     });
 
+    // ===== Canal aprovados =====
     const aprovados = await client.channels.fetch(APROVADOS_ID);
 
     const embedAprovado = new EmbedBuilder()
-      .setColor("Green")
+      .setColor(COR_YAKUZA)
       .setAuthor({
         name: "🏮 Membro Aceite no Clã",
-        iconURL: interaction.guild.iconURL({ dynamic: true })
+        iconURL: guild.iconURL({ dynamic: true })
       })
-      .setThumbnail(interaction.guild.iconURL({ dynamic: true }))
+      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
       .addFields(
         { name: "👤 Membro", value: `${member}` },
         { name: "🎮 Nome no Roblox", value: roblox, inline: true },
         { name: "🎂 Idade", value: idade, inline: true },
-        { name: "🤝 Recrutador", value: recrutador, inline: true },
+        { name: "🤝 Quem te recrutou?", value: recrutador, inline: true },
         { name: "🛡️ Aprovado por", value: `${interaction.user}` }
       )
       .setFooter({ text: "✨ Honra e Lealdade – Sistema May" });
 
     await aprovados.send({ embeds: [embedAprovado] });
+
+    // ===== ANÚNCIO NO CHAT GERAL =====
+    const chatGeral = await client.channels.fetch(CHAT_GERAL_ID);
+
+    const boasVindas = new EmbedBuilder()
+      .setColor(COR_YAKUZA)
+      .setAuthor({
+        name: "🏮 Novo membro na Família Yakuza",
+        iconURL: guild.iconURL({ dynamic: true })
+      })
+      .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+      .setDescription(
+`🎉 Bem-vindo ${member} à família!
+
+Mostra respeito, honra e lealdade dentro do clã.
+
+Os **Anjos** irão acolher-te em breve 🤍`
+      )
+      .addFields(
+        { name: "🎮 Nome no Roblox", value: roblox, inline: true },
+        { name: "🤝 Recrutado por", value: recrutador, inline: true }
+      )
+      .setFooter({ text: "🏮 Sistema May • Yakuza Family" });
+
+    await chatGeral.send({
+      content: `🎉 ${member}`,
+      embeds: [boasVindas]
+    });
   }
 
   // ================= RECUSAR =================
