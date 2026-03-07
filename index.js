@@ -279,8 +279,6 @@ Os **Anjos** irão acolher-te em breve 🤍`
 
 });
 
-console.log("Cheguei no login");
+client.login(process.env.TOKEN);
 
-client.login(process.env.TOKEN).catch(err => {
-  console.error("Erro ao conectar no Discord:", err);
-});
+client.on("error", console.error);
