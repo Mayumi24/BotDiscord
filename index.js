@@ -280,5 +280,5 @@ Os **Anjos** irão acolher-te em breve 🤍`
 });
 
 client.login(process.env.TOKEN).catch(err => {
-  console.log("Erro ao logar:", err);
+  console.error("Erro ao conectar no Discord:", err);
 });
