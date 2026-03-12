@@ -1,23 +1,23 @@
-import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, REST, Routes, SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import express from 'express';
 import 'dotenv/config';
 
-// 1. Servidor para manter o bot online no Render
+// --- CONFIGURAÇÃO DO SERVIDOR WEB (RENDER) ---
 const app = express();
-app.get("/", (req, res) => res.send("Bot de Verificação e Logs Ativo! 🏮"));
+app.get("/", (req, res) => res.send("Cadeia Municipal da May e Sistema de Verificação Ativos! 🚔"));
 app.listen(process.env.PORT || 3000, () => console.log("--- [WEB] Servidor Ativo ---"));
 
-// 2. Configuração do Bot com as permissões necessárias
+// --- CONFIGURAÇÃO DO BOT ---
 const client = new Client({ 
   intents: [
     GatewayIntentBits.Guilds, 
-    GatewayIntentBits.GuildModeration, // Para detectar banimentos
+    GatewayIntentBits.GuildModeration, 
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages
   ] 
 });
 
-// 3. Registro do comando /verificar
+// --- REGISTRO DE COMANDOS SLASH ---
 client.on('ready', async () => {
   console.log(`✅ [DISCORD] Logado como: ${client.user.tag}`);
 
@@ -26,22 +26,34 @@ client.on('ready', async () => {
     await rest.put(
       Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
       { body: [
+          // Comando /verificar
           new SlashCommandBuilder()
             .setName('verificar')
-            .setDescription('Envia o painel de verificação')
+            .setDescription('Envia o painel de verificação'),
+          
+          // Comando /prender
+          new SlashCommandBuilder()
+            .setName('prender')
+            .setDescription('Envia um infrator para a prisão (timeout)')
+            .addUserOption(opt => opt.setName('infrator').setDescription('Quem vai ver o sol nascer quadrado?').setRequired(true))
+            .addIntegerOption(opt => opt.setName('tempo').setDescription('Tempo de pena (em minutos)').setRequired(true))
+            .addStringOption(opt => opt.setName('crime').setDescription('Qual foi o crime cometido?'))
+            .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         ] 
       }
     );
-    console.log("--- [REST] Comando /verificar pronto! ---");
+    console.log("--- [REST] Comandos de Verificação e Prisão Registrados! ---");
   } catch (error) {
     console.log("⚠️ Erro no REST:", error.message);
   }
 });
 
-// 4. Lógica do Botão de Verificação
+// --- INTERAÇÕES (COMANDOS) ---
 client.on('interactionCreate', async interaction => {
-  if (interaction.isChatInputCommand() && interaction.commandName === 'verificar') {
-    
+  if (!interaction.isChatInputCommand()) return;
+
+  // Lógica da Verificação
+  if (interaction.commandName === 'verificar') {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setLabel('Verifique-se')
@@ -53,30 +65,54 @@ client.on('interactionCreate', async interaction => {
                      "• Para se verificar no servidor e liberar os demais canais, basta clicar no botão abaixo e autorizar nosso bot.\n\n" +
                      "• Após a autorização, você terá acesso completo aos **canais do servidor**.";
 
-    await interaction.reply({ 
-      content: mensagem, 
-      components: [row] 
-    });
+    await interaction.reply({ content: mensagem, components: [row] });
   }
-});
 
-// 5. REGISTRO AUTOMÁTICO DE BANIMENTOS
-client.on('guildBanAdd', async (ban) => {
-  try {
-    const canalLogsId = process.env.CANAL_LOGS_ID;
-    const canalLogs = ban.guild.channels.cache.get(canalLogsId);
+  // Lógica da Prisão
+  if (interaction.commandName === 'prender') {
+    const usuario = interaction.options.getMember('infrator');
+    const tempo = interaction.options.getInteger('tempo');
+    const crime = interaction.options.getString('crime') || 'Vadiagem e mau comportamento';
 
-    if (canalLogs) {
-      await canalLogs.send(`🔨 **REGISTRO DE BANIMENTO**\n\n` +
-                           `**Usuário:** ${ban.user.tag} (${ban.user.id})\n` +
-                           `**Motivo:** ${ban.reason || 'Não especificado'}`);
-      console.log(`Log de banimento enviado para o usuário: ${ban.user.tag}`);
-    } else {
-      console.log("⚠️ Canal de logs não encontrado. Verifique o ID no Render.");
+    if (!usuario) return interaction.reply({ content: "❌ O meliante fugiu! (Usuário não encontrado)", ephemeral: true });
+    
+    try {
+      // Aplica o Timeout (Castigo)
+      await usuario.timeout(tempo * 60 * 1000, crime);
+      
+      const mensagemPublica = `⚖️ **SENTENÇA PROFERIDA**\n\n` +
+                             `**Prisioneiro:** <@${usuario.id}>\n` +
+                             `**Pena:** ${tempo} minutos na cela\n` +
+                             `**Crime:** ${crime}\n\n` +
+                             `🚓 *O réu foi levado para a prisão sem direito a fiança!*`;
+
+      await interaction.reply({ content: mensagemPublica });
+
+      // Envia anúncio no canal de PRISÃO
+      const canalPrisaoId = process.env.CANAL_PRISAO_ID;
+      const canalPrisao = interaction.guild.channels.cache.get(canalPrisaoId);
+      if (canalPrisao) {
+        await canalPrisao.send(`🚨 **Mural de Detentos:** <@${usuario.id}> foi trancafiado por **${tempo} minutos**.\n**Motivo:** ${crime}`);
+      }
+
+      // Registro nos Logs Privados
+      const canalLogs = interaction.guild.channels.cache.get(process.env.CANAL_LOGS_ID);
+      if (canalLogs) {
+        canalLogs.send(`⛓️ **CADERNO DE OCORRÊNCIAS**\n**Infrator:** ${usuario.user.tag}\n**Tempo:** ${tempo} min\n**Crime:** ${crime}\n**Delegado:** ${interaction.user.tag}`);
+      }
+
+    } catch (err) {
+      await interaction.reply({ content: "❌ O meliante é mais forte que a lei! (Verifique se meu cargo está acima do dele)", ephemeral: true });
     }
-  } catch (err) {
-    console.log("Erro ao registrar banimento:", err.message);
   }
 });
 
-client.login(process.env.TOKEN).catch(err => console.log("❌ Erro Login:", err.message));
+// --- REGISTRO AUTOMÁTICO DE BANIMENTOS (SENTENÇA FINAL) ---
+client.on('guildBanAdd', async (ban) => {
+  const canalLogs = ban.guild.channels.cache.get(process.env.CANAL_LOGS_ID);
+  if (canalLogs) {
+    canalLogs.send(`💀 **SENTENÇA FINAL: BANIMENTO**\n**Exilado:** ${ban.user.tag} (${ban.user.id})\n**Motivo:** ${ban.reason || 'Crimes graves contra o servidor'}`);
+  }
+});
+
+client.login(process.env.TOKEN);
