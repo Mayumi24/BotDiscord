@@ -48,9 +48,9 @@ client.on('interactionCreate', async interaction => {
         .setStyle(ButtonStyle.Link)
     );
 
-    const mensagem = "🏮 **SISTEMA DE VERIFICAÇÃO**\n\n" +
+   const mensagem = "🏮 **SISTEMA DE VERIFICAÇÃO**\n\n" +
                      "• Para se verificar no servidor e liberar os demais canais, basta clicar no botão abaixo e autorizar nosso bot.\n\n" +
-                     "• Após a autorização, você terá acesso completo aos painéis de compra.";
+                     "• Após a autorização, você terá acesso completo aos **canais do servidor**.";
 
     await interaction.reply({ 
       content: mensagem, 
